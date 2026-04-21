@@ -1,0 +1,12 @@
+{
+  "from": "src",
+  "to": "dst",
+  "srcBoard": "board1",
+  "dstBoard": "board2",
+  "ticketTypes": {
+    "type1": "type2"
+  },
+  "bins": {
+    "bin1": "bin2"
+  }
+}
