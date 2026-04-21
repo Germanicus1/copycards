@@ -2,12 +2,8 @@ package cli
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 
-	"copycards/internal/config"
 	"copycards/internal/copier"
-	"copycards/internal/fbclient"
 	"copycards/internal/mapping"
 )
 
@@ -29,41 +25,23 @@ func CopyTickets(srcProfile, dstProfile, srcBoardID, dstBoardID string, opts Cop
 		opts.Concurrency = 500
 	}
 
-	// Load config
-	configPath := filepath.Join(os.ExpandEnv("$HOME"), ".config", "copycards", "config.toml")
-	cfg, err := config.Load(configPath)
-	if err != nil {
-		return fmt.Errorf("load config: %w", err)
-	}
-
-	srcOrg, err := cfg.GetOrg(srcProfile)
+	cfg, err := loadConfig()
 	if err != nil {
 		return err
 	}
 
-	dstOrg, err := cfg.GetOrg(dstProfile)
+	srcClient, err := makeClient(cfg, srcProfile, opts.Concurrency)
 	if err != nil {
 		return err
 	}
 
-	// Discover endpoints
-	srcEndpoint, err := config.DiscoverEndpoint(srcOrg.OrgID, srcOrg.APIKey)
+	dstClient, err := makeClient(cfg, dstProfile, opts.Concurrency)
 	if err != nil {
-		return fmt.Errorf("discover src endpoint: %w", err)
+		return err
 	}
-
-	dstEndpoint, err := config.DiscoverEndpoint(dstOrg.OrgID, dstOrg.APIKey)
-	if err != nil {
-		return fmt.Errorf("discover dst endpoint: %w", err)
-	}
-
-	// Create clients
-	srcClient := fbclient.NewClient(srcEndpoint, srcOrg.APIKey, opts.Concurrency)
-	dstClient := fbclient.NewClient(dstEndpoint, dstOrg.APIKey, opts.Concurrency)
 
 	// Load or create mapping file
-	mappingPath := filepath.Join(os.ExpandEnv("$HOME"), ".copycard", "mapping.json")
-	m, err := mapping.Load(mappingPath)
+	m, err := mapping.Load(defaultMappingPath())
 	if err != nil {
 		return fmt.Errorf("load mapping: %w", err)
 	}
@@ -114,7 +92,7 @@ func CopyTickets(srcProfile, dstProfile, srcBoardID, dstBoardID string, opts Cop
 
 	// Save mapping if not a dry run
 	if !opts.DryRun {
-		if err := m.Save(mappingPath); err != nil {
+		if err := m.Save(defaultMappingPath()); err != nil {
 			return fmt.Errorf("save mapping: %w", err)
 		}
 	}
@@ -129,41 +107,23 @@ func CopyTicket(srcProfile, dstProfile, ticketID, dstBoardID string, opts struct
 	IncludeComments    bool
 	DryRun             bool
 }) error {
-	// Load config
-	configPath := filepath.Join(os.ExpandEnv("$HOME"), ".config", "copycards", "config.toml")
-	cfg, err := config.Load(configPath)
-	if err != nil {
-		return fmt.Errorf("load config: %w", err)
-	}
-
-	srcOrg, err := cfg.GetOrg(srcProfile)
+	cfg, err := loadConfig()
 	if err != nil {
 		return err
 	}
 
-	dstOrg, err := cfg.GetOrg(dstProfile)
+	srcClient, err := makeClient(cfg, srcProfile, 1)
 	if err != nil {
 		return err
 	}
 
-	// Discover endpoints
-	srcEndpoint, err := config.DiscoverEndpoint(srcOrg.OrgID, srcOrg.APIKey)
+	dstClient, err := makeClient(cfg, dstProfile, 1)
 	if err != nil {
-		return fmt.Errorf("discover src endpoint: %w", err)
+		return err
 	}
-
-	dstEndpoint, err := config.DiscoverEndpoint(dstOrg.OrgID, dstOrg.APIKey)
-	if err != nil {
-		return fmt.Errorf("discover dst endpoint: %w", err)
-	}
-
-	// Create clients
-	srcClient := fbclient.NewClient(srcEndpoint, srcOrg.APIKey, 1)
-	dstClient := fbclient.NewClient(dstEndpoint, dstOrg.APIKey, 1)
 
 	// Load or create mapping file
-	mappingPath := filepath.Join(os.ExpandEnv("$HOME"), ".copycard", "mapping.json")
-	m, err := mapping.Load(mappingPath)
+	m, err := mapping.Load(defaultMappingPath())
 	if err != nil {
 		return fmt.Errorf("load mapping: %w", err)
 	}
@@ -217,10 +177,10 @@ func CopyTicket(srcProfile, dstProfile, ticketID, dstBoardID string, opts struct
 		return fmt.Errorf("copy ticket: %w", err)
 	}
 
-	fmt.Printf("✓ Ticket copied: %s -> %s\n", ticketID, newID)
+	fmt.Printf("Ticket copied: %s -> %s\n", ticketID, newID)
 
 	// Save mapping
-	if err := m.Save(mappingPath); err != nil {
+	if err := m.Save(defaultMappingPath()); err != nil {
 		return fmt.Errorf("save mapping: %w", err)
 	}
 
@@ -229,35 +189,23 @@ func CopyTicket(srcProfile, dstProfile, ticketID, dstBoardID string, opts struct
 
 // DiffBoards shows tickets in src that haven't been copied to dst yet
 func DiffBoards(srcProfile, dstProfile, srcBoardID, dstBoardID string) error {
-	// Load config
-	configPath := filepath.Join(os.ExpandEnv("$HOME"), ".config", "copycards", "config.toml")
-	cfg, err := config.Load(configPath)
-	if err != nil {
-		return fmt.Errorf("load config: %w", err)
-	}
-
-	srcOrg, err := cfg.GetOrg(srcProfile)
+	cfg, err := loadConfig()
 	if err != nil {
 		return err
 	}
 
-	_, err = cfg.GetOrg(dstProfile)
+	srcClient, err := makeClient(cfg, srcProfile, 1)
 	if err != nil {
 		return err
 	}
 
-	// Discover endpoints
-	srcEndpoint, err := config.DiscoverEndpoint(srcOrg.OrgID, srcOrg.APIKey)
+	_, err = makeClient(cfg, dstProfile, 1)
 	if err != nil {
-		return fmt.Errorf("discover src endpoint: %w", err)
+		return err
 	}
-
-	// Create client (we only need src to read)
-	srcClient := fbclient.NewClient(srcEndpoint, srcOrg.APIKey, 1)
 
 	// Load mapping
-	mappingPath := filepath.Join(os.ExpandEnv("$HOME"), ".copycard", "mapping.json")
-	m, err := mapping.Load(mappingPath)
+	m, err := mapping.Load(defaultMappingPath())
 	if err != nil {
 		return fmt.Errorf("load mapping: %w", err)
 	}
@@ -269,19 +217,22 @@ func DiffBoards(srcProfile, dstProfile, srcBoardID, dstBoardID string) error {
 	}
 
 	// Enumerate all src tickets
-	var srcTickets []*fbclient.Ticket
+	var srcTickets []*TicketInfo
 	for _, bin := range srcBoard.Bins {
 		tickets, err := srcClient.ListTicketsByBin(bin.ID)
 		if err != nil {
 			return fmt.Errorf("fetch tickets for bin %s: %w", bin.ID, err)
 		}
 		for i := range tickets {
-			srcTickets = append(srcTickets, &tickets[i])
+			srcTickets = append(srcTickets, &TicketInfo{
+				ID:   tickets[i].ID,
+				Name: tickets[i].Name,
+			})
 		}
 	}
 
 	// Find tickets not yet copied
-	var notCopied []*fbclient.Ticket
+	var notCopied []*TicketInfo
 	for _, ticket := range srcTickets {
 		if m.GetTicketDst(ticket.ID) == "" {
 			notCopied = append(notCopied, ticket)
@@ -304,4 +255,11 @@ func DiffBoards(srcProfile, dstProfile, srcBoardID, dstBoardID string) error {
 	fmt.Printf("Total: %d ticket(s) remaining\n", len(notCopied))
 
 	return nil
+}
+
+// TicketInfo is a lightweight struct for displaying ticket info
+// This is used instead of fbclient.Ticket in diff output to keep output small
+type TicketInfo struct {
+	ID   string
+	Name string
 }

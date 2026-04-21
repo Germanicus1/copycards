@@ -4,36 +4,22 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 
-	"copycards/internal/config"
 	"copycards/internal/copier"
-	"copycards/internal/fbclient"
 )
 
 // ListBoards displays an interactive numbered menu of boards for a given org profile
 func ListBoards(orgProfile string) error {
-	// Load config
-	configPath := filepath.Join(os.ExpandEnv("$HOME"), ".config", "copycards", "config.toml")
-	cfg, err := config.Load(configPath)
-	if err != nil {
-		return fmt.Errorf("load config: %w", err)
-	}
-
-	org, err := cfg.GetOrg(orgProfile)
+	cfg, err := loadConfig()
 	if err != nil {
 		return err
 	}
 
-	// Discover endpoint
-	endpoint, err := config.DiscoverEndpoint(org.OrgID, org.APIKey)
+	client, err := makeClient(cfg, orgProfile, 1)
 	if err != nil {
-		return fmt.Errorf("endpoint discovery: %w", err)
+		return err
 	}
-
-	// Create client
-	client := fbclient.NewClient(endpoint, org.APIKey, 1)
 
 	// Fetch boards
 	boards, err := client.ListBoards()
@@ -46,12 +32,11 @@ func ListBoards(orgProfile string) error {
 		return nil
 	}
 
-	// Display interactive menu
+	// Display menu: [1] Board Name [board-id]
 	fmt.Printf("Boards in organization %q:\n", orgProfile)
 	fmt.Println()
 
 	for i, board := range boards {
-		// Format: [1] Board Name [board-id]
 		fmt.Printf("[%d] %s [%s]\n", i+1, board.Name, board.ID)
 	}
 
@@ -62,37 +47,20 @@ func ListBoards(orgProfile string) error {
 
 // VerifyBoards runs a preflight check on two boards to ensure they're compatible
 func VerifyBoards(srcProfile, dstProfile, srcBoardID, dstBoardID string) error {
-	// Load config
-	configPath := filepath.Join(os.ExpandEnv("$HOME"), ".config", "copycards", "config.toml")
-	cfg, err := config.Load(configPath)
-	if err != nil {
-		return fmt.Errorf("load config: %w", err)
-	}
-
-	srcOrg, err := cfg.GetOrg(srcProfile)
+	cfg, err := loadConfig()
 	if err != nil {
 		return err
 	}
 
-	dstOrg, err := cfg.GetOrg(dstProfile)
+	srcClient, err := makeClient(cfg, srcProfile, 1)
 	if err != nil {
 		return err
 	}
 
-	// Discover endpoints
-	srcEndpoint, err := config.DiscoverEndpoint(srcOrg.OrgID, srcOrg.APIKey)
+	dstClient, err := makeClient(cfg, dstProfile, 1)
 	if err != nil {
-		return fmt.Errorf("discover src endpoint: %w", err)
+		return err
 	}
-
-	dstEndpoint, err := config.DiscoverEndpoint(dstOrg.OrgID, dstOrg.APIKey)
-	if err != nil {
-		return fmt.Errorf("discover dst endpoint: %w", err)
-	}
-
-	// Create clients
-	srcClient := fbclient.NewClient(srcEndpoint, srcOrg.APIKey, 1)
-	dstClient := fbclient.NewClient(dstEndpoint, dstOrg.APIKey, 1)
 
 	// Run preflight
 	pf, err := copier.Preflight(srcClient, dstClient, srcBoardID, dstBoardID)
@@ -102,7 +70,7 @@ func VerifyBoards(srcProfile, dstProfile, srcBoardID, dstBoardID string) error {
 
 	// Display results
 	if pf.Valid {
-		fmt.Printf("✓ Boards are compatible\n")
+		fmt.Printf("Boards are compatible\n")
 		fmt.Println()
 		fmt.Println("Mappings:")
 		fmt.Println()
@@ -142,7 +110,7 @@ func VerifyBoards(srcProfile, dstProfile, srcBoardID, dstBoardID string) error {
 		return nil
 	}
 
-	fmt.Printf("✗ Boards are NOT compatible\n")
+	fmt.Printf("Boards are NOT compatible\n")
 	fmt.Println()
 	fmt.Println("Errors:")
 	for _, errMsg := range pf.Errors {
@@ -153,27 +121,17 @@ func VerifyBoards(srcProfile, dstProfile, srcBoardID, dstBoardID string) error {
 }
 
 // InteractiveBoardSelection prompts user to select a board from a numbered list
+// Returns the selected board ID
 func InteractiveBoardSelection(orgProfile string) (string, error) {
-	// Load config
-	configPath := filepath.Join(os.ExpandEnv("$HOME"), ".config", "copycards", "config.toml")
-	cfg, err := config.Load(configPath)
-	if err != nil {
-		return "", fmt.Errorf("load config: %w", err)
-	}
-
-	org, err := cfg.GetOrg(orgProfile)
+	cfg, err := loadConfig()
 	if err != nil {
 		return "", err
 	}
 
-	// Discover endpoint
-	endpoint, err := config.DiscoverEndpoint(org.OrgID, org.APIKey)
+	client, err := makeClient(cfg, orgProfile, 1)
 	if err != nil {
-		return "", fmt.Errorf("endpoint discovery: %w", err)
+		return "", err
 	}
-
-	// Create client
-	client := fbclient.NewClient(endpoint, org.APIKey, 1)
 
 	// Fetch boards
 	boards, err := client.ListBoards()
@@ -219,3 +177,4 @@ func InteractiveBoardSelection(orgProfile string) (string, error) {
 
 	return boards[choice-1].ID, nil
 }
+
