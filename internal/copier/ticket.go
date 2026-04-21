@@ -36,7 +36,7 @@ func CopyTicket(srcClient, dstClient *fbclient.Client, srcTicketID, dstBoardID s
 	}
 
 	// Translate fields
-	dstTicket, err := TranslateTicket(srcTicket, newID, dstBoardID, m)
+	dstTicket, err := TranslateTicket(srcTicket, newID, dstBoardID, m, dstClient)
 	if err != nil {
 		return "", fmt.Errorf("translate ticket: %w", err)
 	}
@@ -67,7 +67,7 @@ func CopyTicket(srcClient, dstClient *fbclient.Client, srcTicketID, dstBoardID s
 }
 
 // TranslateTicket converts src ticket to dst format, applying ID mappings
-func TranslateTicket(srcTicket *fbclient.Ticket, newID, dstBoardID string, m *mapping.Mapping) (*fbclient.Ticket, error) {
+func TranslateTicket(srcTicket *fbclient.Ticket, newID, dstBoardID string, m *mapping.Mapping, dstClient *fbclient.Client) (*fbclient.Ticket, error) {
 	dst := &fbclient.Ticket{
 		ID:           newID,
 		Name:         srcTicket.Name,
@@ -127,7 +127,7 @@ func TranslateTicket(srcTicket *fbclient.Ticket, newID, dstBoardID string, m *ma
 	if len(srcTicket.Checklists) > 0 {
 		dst.Checklists = make(map[string]fbclient.Checklist)
 		for _, srcCL := range srcTicket.Checklists {
-			dstCLID, _ := AllocateID(nil) // Regenerate checklist ID (client not needed for placeholder)
+			dstCLID, _ := AllocateID(dstClient) // Regenerate checklist ID
 			dstCL := fbclient.Checklist{
 				Name:  srcCL.Name,
 				Order: srcCL.Order,
@@ -135,7 +135,7 @@ func TranslateTicket(srcTicket *fbclient.Ticket, newID, dstBoardID string, m *ma
 			if len(srcCL.Items) > 0 {
 				dstCL.Items = make(map[string]fbclient.ChecklistItem)
 				for _, srcItem := range srcCL.Items {
-					dstItemID, _ := AllocateID(nil) // Regenerate item ID (client not needed for placeholder)
+					dstItemID, _ := AllocateID(dstClient) // Regenerate item ID
 					dstCL.Items[dstItemID] = fbclient.ChecklistItem{
 						Name:    srcItem.Name,
 						Order:   srcItem.Order,
@@ -161,11 +161,19 @@ func AllocateTicketID(client *fbclient.Client) (string, error) {
 	return AllocateID(client)
 }
 
-// AllocateID is a helper to get IDs from /ids endpoint (stub for now)
+// AllocateID is a helper to get IDs from /ids endpoint
 func AllocateID(client *fbclient.Client) (string, error) {
-	// TODO: implement /ids endpoint fetch
-	// For now, return a placeholder that will be replaced in Task 7
-	return "placeholder-id", nil
+	if client == nil {
+		return "", fmt.Errorf("client cannot be nil")
+	}
+	ids, err := client.GetIDs(1)
+	if err != nil {
+		return "", fmt.Errorf("allocate ID: %w", err)
+	}
+	if len(ids) == 0 {
+		return "", fmt.Errorf("no IDs returned from /ids endpoint")
+	}
+	return ids[0], nil
 }
 
 // CopyAttachments copies all attachments from src ticket to dst ticket

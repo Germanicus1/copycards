@@ -1,6 +1,8 @@
 package copier
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"copycards/internal/copier"
@@ -37,7 +39,7 @@ func TestTranslateTicket(t *testing.T) {
 		},
 	}
 
-	dstTicket, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m)
+	dstTicket, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m, nil)
 	if err != nil {
 		t.Fatalf("TranslateTicket failed: %v", err)
 	}
@@ -84,7 +86,7 @@ func TestTranslateTicketUnmappedUser(t *testing.T) {
 		Users: map[string]string{},
 	}
 
-	_, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m)
+	_, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m, nil)
 	if err == nil {
 		t.Fatal("Expected error for unmapped user")
 	}
@@ -112,7 +114,7 @@ func TestTranslateTicketUnmappedWatch(t *testing.T) {
 		Users: map[string]string{},
 	}
 
-	_, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m)
+	_, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m, nil)
 	if err == nil {
 		t.Fatal("Expected error for unmapped watch user")
 	}
@@ -137,7 +139,7 @@ func TestTranslateTicketMissingBinMapping(t *testing.T) {
 		Users: map[string]string{},
 	}
 
-	_, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m)
+	_, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m, nil)
 	if err == nil {
 		t.Fatal("Expected error for missing bin mapping")
 	}
@@ -159,13 +161,24 @@ func TestTranslateTicketMissingTicketTypeMapping(t *testing.T) {
 		Users:       map[string]string{},
 	}
 
-	_, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m)
+	_, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m, nil)
 	if err == nil {
 		t.Fatal("Expected error for missing ticket type mapping")
 	}
 }
 
 func TestTranslateTicketWithChecklists(t *testing.T) {
+	// Mock server for ID allocation
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/ids" {
+			w.Write([]byte(`["id-cl-1", "id-item-1", "id-item-2"]`))
+		}
+	}))
+	defer server.Close()
+
+	client := fbclient.NewClient(server.URL, "key", 1)
+
 	srcTicket := &fbclient.Ticket{
 		ID:           "src-ticket-1",
 		Name:         "Test Ticket",
@@ -196,7 +209,7 @@ func TestTranslateTicketWithChecklists(t *testing.T) {
 		Users: map[string]string{},
 	}
 
-	dstTicket, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m)
+	dstTicket, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m, client)
 	if err != nil {
 		t.Fatalf("TranslateTicket failed: %v", err)
 	}
@@ -252,7 +265,7 @@ func TestTranslateTicketMultipleAssignees(t *testing.T) {
 		},
 	}
 
-	dstTicket, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m)
+	dstTicket, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m, nil)
 	if err != nil {
 		t.Fatalf("TranslateTicket failed: %v", err)
 	}
@@ -285,7 +298,7 @@ func TestTranslateTicketDatesPreserved(t *testing.T) {
 		Users: map[string]string{},
 	}
 
-	dstTicket, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m)
+	dstTicket, err := copier.TranslateTicket(srcTicket, "dst-ticket-1", "dst-board-1", m, nil)
 	if err != nil {
 		t.Fatalf("TranslateTicket failed: %v", err)
 	}
