@@ -103,7 +103,7 @@ func CopyBoard(srcClient, dstClient *fbclient.Client, srcBoardID, dstBoardID str
 
 			var childDstIDs []string
 			for _, child := range children {
-				if dstID := m.GetTicketDst(child.ID); dstID != "" && m.Bins[child.BinID] != "" {
+				if dstID := m.GetTicketDst(child.ID); dstID != "" && m.GetBinDst(child.BinID) != "" {
 					childDstIDs = append(childDstIDs, dstID)
 				}
 			}

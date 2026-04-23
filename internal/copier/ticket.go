@@ -78,8 +78,8 @@ func TranslateTicket(srcTicket *fbclient.Ticket, newID, dstBoardID string, m *ma
 	dst := &fbclient.Ticket{
 		ID:           newID,
 		Name:         srcTicket.Name,
-		BinID:        m.Bins[srcTicket.BinID],
-		TicketTypeID: m.TicketTypes[srcTicket.TicketTypeID],
+		BinID:        m.GetBinDst(srcTicket.BinID),
+		TicketTypeID: m.GetTicketTypeDst(srcTicket.TicketTypeID),
 		Order:        srcTicket.Order,
 		Description:  srcTicket.Description,
 	}
@@ -99,8 +99,8 @@ func TranslateTicket(srcTicket *fbclient.Ticket, newID, dstBoardID string, m *ma
 	if len(srcTicket.AssignedIDs) > 0 {
 		dst.AssignedIDs = make([]string, 0)
 		for _, srcUserID := range srcTicket.AssignedIDs {
-			dstUserID, ok := m.Users[srcUserID]
-			if !ok {
+			dstUserID := m.GetUserDst(srcUserID)
+			if dstUserID == "" {
 				return nil, fmt.Errorf("unmapped user assignment: %s", srcUserID)
 			}
 			dst.AssignedIDs = append(dst.AssignedIDs, dstUserID)
@@ -111,8 +111,8 @@ func TranslateTicket(srcTicket *fbclient.Ticket, newID, dstBoardID string, m *ma
 	if len(srcTicket.WatchIDs) > 0 {
 		dst.WatchIDs = make([]string, 0)
 		for _, srcUserID := range srcTicket.WatchIDs {
-			dstUserID, ok := m.Users[srcUserID]
-			if !ok {
+			dstUserID := m.GetUserDst(srcUserID)
+			if dstUserID == "" {
 				return nil, fmt.Errorf("unmapped user watch: %s", srcUserID)
 			}
 			dst.WatchIDs = append(dst.WatchIDs, dstUserID)
@@ -123,8 +123,8 @@ func TranslateTicket(srcTicket *fbclient.Ticket, newID, dstBoardID string, m *ma
 	if len(srcTicket.CustomFields) > 0 {
 		dst.CustomFields = make(map[string]interface{})
 		for srcFieldID, value := range srcTicket.CustomFields {
-			dstFieldID, ok := m.CustomFields[srcFieldID]
-			if !ok {
+			dstFieldID := m.GetCustomFieldDst(srcFieldID)
+			if dstFieldID == "" {
 				return nil, fmt.Errorf("unmapped custom field: %s", srcFieldID)
 			}
 			dst.CustomFields[dstFieldID] = value
