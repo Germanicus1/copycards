@@ -1,6 +1,6 @@
 # copycards
 
-Copycards is a command-line tool for copying [Flowboards](https://fb.mauvable.com/) tickets from one organisation to another. It reconciles bins, ticket types, and custom fields by name, maps users by email, preserves parent/child hierarchies, and is idempotent across re-runs.
+Copycards is a command-line tool for copying [Flowboards](https://kanban.plus/) tickets from one organisation to another. It reconciles bins, ticket types, and custom fields by name, maps users by email, preserves parent/child hierarchies, and is idempotent across re-runs.
 
 ## What it does
 
