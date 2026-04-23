@@ -1,6 +1,6 @@
 # copycards
 
-Copycards is a command-line tool for copying [Flowboards](https://kanban.plus/) tickets from one organisation to another. It reconciles bins, ticket types, and custom fields by name, maps users by email, preserves parent/child hierarchies, and is idempotent across re-runs.
+Copycards is a command-line tool for copying [Flowboards](https://kanban.plus/) tickets from one board (space) to another. It reconciles bins, ticket types, and custom fields by name, maps users by email, preserves parent/child hierarchies, and is idempotent across re-runs.
 
 ## What it does
 
@@ -16,6 +16,16 @@ Flowboards doesn't offer an official cross-organisation copy for tickets. Copyca
 
 - **Go ≥ 1.25** (the module targets 1.25.6 — check with `go version`)
 - A Flowboards account with API keys for both the source and destination organisations
+- Users need to have access to boath boards.
+- If copying between organizations:
+    - Ticket source ticket types must exist in the destination org
+    - User/ticket creator must exist in both organizations (match by email)
+- The boards/spaces must have identical structure, e.g. the destination board is an empty clone of the source board. This can be accomplished by the copy board functionality inside Flowboards.
+
+## Known limitations
+
+What copycards can copy is bounded by what the Flowboards REST API exposes, which is not everything in the UI.
+>For example, class of service (the urgency classification shown as a ticket's coloured indicator) is not returned by the API, so destination tickets lose it. If a field doesn't appear in the REST response, copycards can't carry it over.
 
 ## Installation
 
