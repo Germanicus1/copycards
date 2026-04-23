@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"copycards/internal/mapping"
@@ -12,11 +11,7 @@ import (
 
 // ShowMapping displays the mapping file content
 func ShowMapping(srcProfile, dstProfile, srcBoardID string) error {
-	// Determine mapping file path
-	// If all params provided, use those; otherwise use default
-	mappingPath := filepath.Join(os.ExpandEnv("$HOME"), ".copycard", "mapping.json")
-
-	m, err := mapping.Load(mappingPath)
+	m, err := mapping.Load(defaultMappingPath())
 	if err != nil {
 		return fmt.Errorf("load mapping: %w", err)
 	}
@@ -58,7 +53,7 @@ func ShowMapping(srcProfile, dstProfile, srcBoardID string) error {
 
 // ResetMapping deletes the mapping file after user confirmation
 func ResetMapping(srcProfile, dstProfile, srcBoardID string) error {
-	mappingPath := filepath.Join(os.ExpandEnv("$HOME"), ".copycard", "mapping.json")
+	mappingPath := defaultMappingPath()
 
 	// Check if mapping file exists
 	if _, err := os.Stat(mappingPath); err != nil {

@@ -11,9 +11,9 @@ type OrgProfile struct {
 
 // Flowboards API responses
 type Board struct {
-	ID   string `json:"_id"`
-	Name string `json:"name"`
-	Bins []Bin  `json:"bins"`
+	ID   string   `json:"_id"`
+	Name string   `json:"name"`
+	Bins []string `json:"bins"`
 }
 
 type Bin struct {
@@ -47,15 +47,15 @@ type Ticket struct {
 	ID              string                 `json:"_id"`
 	Name            string                 `json:"name"`
 	BinID           string                 `json:"bin_id"`
-	TicketTypeID    string                 `json:"ticketType_id"`
+	TicketTypeID    string                 `json:"ticketType_id,omitempty"`
 	Order           float64                `json:"order"`
 	EnclosedID      string                 `json:"enclosed_id,omitempty"`
 	AssignedIDs     []string               `json:"assigned_ids,omitempty"`
 	WatchIDs        []string               `json:"watch_ids,omitempty"`
-	Description     string                 `json:"description,omitempty"`
+	Description     interface{}            `json:"description,omitempty"`
 	CustomFields    map[string]interface{} `json:"customFields,omitempty"`
 	Checklists      map[string]Checklist   `json:"checklists,omitempty"`
-	UpdatedAt       time.Time              `json:"updatedAt"`
+	UpdatedAt       *time.Time             `json:"updatedAt,omitempty"`
 	PlannedStartDate string                `json:"plannedStartDate,omitempty"`
 	DueDate         string                 `json:"dueDate,omitempty"`
 }

@@ -110,12 +110,7 @@ func VerifyBoards(srcProfile, dstProfile, srcBoardID, dstBoardID string) error {
 		return nil
 	}
 
-	fmt.Printf("Boards are NOT compatible\n")
-	fmt.Println()
-	fmt.Println("Errors:")
-	for _, errMsg := range pf.Errors {
-		fmt.Printf("  - %s\n", errMsg)
-	}
+	fmt.Println(pf.FormatErrors())
 
 	return nil
 }

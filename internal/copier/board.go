@@ -1,6 +1,7 @@
 package copier
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 
@@ -25,7 +26,7 @@ func CopyBoard(srcClient, dstClient *fbclient.Client, srcBoardID, dstBoardID str
 		return fmt.Errorf("preflight: %w", err)
 	}
 	if !pf.Valid {
-		return fmt.Errorf("boards not compatible: %v", pf.Errors)
+		return fmt.Errorf("%s", pf.FormatErrors())
 	}
 
 	// Apply preflight mappings
@@ -38,10 +39,10 @@ func CopyBoard(srcClient, dstClient *fbclient.Client, srcBoardID, dstBoardID str
 	}
 
 	var allSrcTickets []*fbclient.Ticket
-	for _, bin := range srcBoard.Bins {
-		tickets, err := srcClient.ListTicketsByBin(bin.ID)
+	for _, binID := range srcBoard.Bins {
+		tickets, err := srcClient.ListTicketsByBin(binID)
 		if err != nil {
-			return fmt.Errorf("fetch tickets for bin %s: %w", bin.ID, err)
+			return fmt.Errorf("fetch tickets for bin %s: %w", binID, err)
 		}
 		for i := range tickets {
 			allSrcTickets = append(allSrcTickets, &tickets[i])
@@ -62,15 +63,20 @@ func CopyBoard(srcClient, dstClient *fbclient.Client, srcBoardID, dstBoardID str
 	copiedCount := 0
 	skippedCount := 0
 	failedCount := 0
+	totalTickets := len(sortedTickets)
+	processedCount := 0
 
 	for _, srcTicket := range sortedTickets {
+		processedCount++
+
 		if opts.DryRun {
-			fmt.Printf("WOULD COPY: ticket %s (%s)\n", srcTicket.ID, srcTicket.Name)
+			fmt.Printf("[%d/%d] WOULD COPY: ticket %s (%s)\n", processedCount, totalTickets, srcTicket.ID, srcTicket.Name)
 			continue
 		}
 
 		// Check if already copied
 		if dstID := m.GetTicketDst(srcTicket.ID); dstID != "" {
+			fmt.Printf("[%d/%d] SKIPPED: ticket %s (already copied)\n", processedCount, totalTickets, srcTicket.ID)
 			skippedCount++
 			continue
 		}
@@ -78,13 +84,18 @@ func CopyBoard(srcClient, dstClient *fbclient.Client, srcBoardID, dstBoardID str
 		// Copy
 		_, err := CopyTicket(srcClient, dstClient, srcTicket.ID, dstBoardID, m, ticketOpts)
 		if err != nil {
+			if errors.Is(err, ErrTicketNotCopyable) {
+				skippedCount++
+				fmt.Printf("[%d/%d] SKIPPED: ticket %s (%v)\n", processedCount, totalTickets, srcTicket.ID, err)
+				continue
+			}
 			failedCount++
-			fmt.Printf("ERROR copying ticket %s: %v\n", srcTicket.ID, err)
+			fmt.Printf("[%d/%d] ERROR copying ticket %s: %v\n", processedCount, totalTickets, srcTicket.ID, err)
 			continue
 		}
 
 		copiedCount++
-		fmt.Printf("TICKET %s → %s (%s)\n", srcTicket.ID, m.GetTicketDst(srcTicket.ID), srcTicket.Name)
+		fmt.Printf("[%d/%d] TICKET %s → %s (%s)\n", processedCount, totalTickets, srcTicket.ID, m.GetTicketDst(srcTicket.ID), srcTicket.Name)
 	}
 
 	// Second pass: restore parent/child links (within-board only)
@@ -113,17 +124,6 @@ func CopyBoard(srcClient, dstClient *fbclient.Client, srcBoardID, dstBoardID str
 
 	// Summary
 	fmt.Printf("Copy summary: %d copied, %d skipped, %d failed\n", copiedCount, skippedCount, failedCount)
-
-	// Persist mapping
-	if !opts.DryRun {
-		m.From = "src" // TODO: get from context
-		m.To = "dst"   // TODO: get from context
-		m.SrcBoardID = srcBoardID
-		m.DstBoardID = dstBoardID
-		if err := m.Save(".copycard/mapping.json"); err != nil {
-			return fmt.Errorf("save mapping: %w", err)
-		}
-	}
 
 	return nil
 }

@@ -8,31 +8,44 @@ import (
 	"copycards/internal/cli"
 )
 
+var configPath string
+
+func init() {
+	flag.StringVar(&configPath, "config", "", "path to config file (default: ~/.config/copycards/config.toml)")
+	flag.Parse()
+}
+
 func main() {
-	if len(os.Args) < 2 {
+	args := flag.Args()
+	if len(args) < 1 {
 		printUsage()
 		os.Exit(1)
 	}
 
-	cmd := os.Args[1]
-	args := os.Args[2:]
+	// Set global config path if provided
+	if configPath != "" {
+		cli.GlobalConfigPath = configPath
+	}
+
+	cmd := args[0]
+	cmdArgs := args[1:]
 
 	var err error
 	exitCode := 0
 
 	switch cmd {
 	case "orgs":
-		err = handleOrgs(args)
+		err = handleOrgs(cmdArgs)
 	case "boards":
-		err = handleBoards(args)
+		err = handleBoards(cmdArgs)
 	case "tickets":
-		err = handleTickets(args)
+		err = handleTickets(cmdArgs)
 	case "ticket":
-		err = handleTicket(args)
+		err = handleTicket(cmdArgs)
 	case "diff":
-		err = handleDiff(args)
+		err = handleDiff(cmdArgs)
 	case "mapping":
-		err = handleMapping(args)
+		err = handleMapping(cmdArgs)
 	case "help", "--help", "-h":
 		printUsage()
 	default:
@@ -114,18 +127,40 @@ func handleBoards(args []string) error {
 		fs := flag.NewFlagSet("board verify", flag.ContinueOnError)
 		from := fs.String("from", "", "source profile")
 		to := fs.String("to", "", "destination profile")
-		srcBoard := fs.String("src-board", "", "source board ID")
-		dstBoard := fs.String("dst-board", "", "destination board ID")
+		srcBoard := fs.String("src-board", "", "source board ID (interactive if omitted)")
+		dstBoard := fs.String("dst-board", "", "destination board ID (interactive if omitted)")
 
 		if err := fs.Parse(rest); err != nil {
 			return err
 		}
 
-		if *from == "" || *to == "" || *srcBoard == "" || *dstBoard == "" {
-			return fmt.Errorf("board verify: --from, --to, --src-board, --dst-board required")
+		if *from == "" || *to == "" {
+			return fmt.Errorf("board verify: --from and --to required")
 		}
 
-		return cli.VerifyBoards(*from, *to, *srcBoard, *dstBoard)
+		// Interactive board selection if not provided
+		var srcBoardID, dstBoardID string
+		if *srcBoard == "" {
+			bid, err := cli.InteractiveBoardSelection(*from)
+			if err != nil {
+				return fmt.Errorf("select source board: %w", err)
+			}
+			srcBoardID = bid
+		} else {
+			srcBoardID = *srcBoard
+		}
+
+		if *dstBoard == "" {
+			bid, err := cli.InteractiveBoardSelection(*to)
+			if err != nil {
+				return fmt.Errorf("select destination board: %w", err)
+			}
+			dstBoardID = bid
+		} else {
+			dstBoardID = *dstBoard
+		}
+
+		return cli.VerifyBoards(*from, *to, srcBoardID, dstBoardID)
 
 	default:
 		return fmt.Errorf("unknown boards subcommand: %s", subcmd)
@@ -145,8 +180,8 @@ func handleTickets(args []string) error {
 		fs := flag.NewFlagSet("tickets copy", flag.ContinueOnError)
 		from := fs.String("from", "", "source profile")
 		to := fs.String("to", "", "destination profile")
-		srcBoard := fs.String("src-board", "", "source board ID")
-		dstBoard := fs.String("dst-board", "", "destination board ID")
+		srcBoard := fs.String("src-board", "", "source board ID (interactive if omitted)")
+		dstBoard := fs.String("dst-board", "", "destination board ID (interactive if omitted)")
 		dryRun := fs.Bool("dry-run", false, "preview changes without applying")
 		incAttach := fs.Bool("include-attachments", false, "copy attachments")
 		incComments := fs.Bool("include-comments", false, "copy comments")
@@ -156,8 +191,30 @@ func handleTickets(args []string) error {
 			return err
 		}
 
-		if *from == "" || *to == "" || *srcBoard == "" || *dstBoard == "" {
-			return fmt.Errorf("tickets copy: --from, --to, --src-board, --dst-board required")
+		if *from == "" || *to == "" {
+			return fmt.Errorf("tickets copy: --from and --to required")
+		}
+
+		// Interactive board selection if not provided
+		var srcBoardID, dstBoardID string
+		if *srcBoard == "" {
+			bid, err := cli.InteractiveBoardSelection(*from)
+			if err != nil {
+				return fmt.Errorf("select source board: %w", err)
+			}
+			srcBoardID = bid
+		} else {
+			srcBoardID = *srcBoard
+		}
+
+		if *dstBoard == "" {
+			bid, err := cli.InteractiveBoardSelection(*to)
+			if err != nil {
+				return fmt.Errorf("select destination board: %w", err)
+			}
+			dstBoardID = bid
+		} else {
+			dstBoardID = *dstBoard
 		}
 
 		opts := cli.CopyTicketsOptions{
@@ -167,7 +224,7 @@ func handleTickets(args []string) error {
 			Concurrency:        *concurrency,
 		}
 
-		return cli.CopyTickets(*from, *to, *srcBoard, *dstBoard, opts)
+		return cli.CopyTickets(*from, *to, srcBoardID, dstBoardID, opts)
 
 	default:
 		return fmt.Errorf("unknown tickets subcommand: %s", subcmd)
@@ -230,18 +287,40 @@ func handleDiff(args []string) error {
 	fs := flag.NewFlagSet("diff", flag.ContinueOnError)
 	from := fs.String("from", "", "source profile")
 	to := fs.String("to", "", "destination profile")
-	srcBoard := fs.String("src-board", "", "source board ID")
-	dstBoard := fs.String("dst-board", "", "destination board ID")
+	srcBoard := fs.String("src-board", "", "source board ID (interactive if omitted)")
+	dstBoard := fs.String("dst-board", "", "destination board ID (interactive if omitted)")
 
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
 
-	if *from == "" || *to == "" || *srcBoard == "" || *dstBoard == "" {
-		return fmt.Errorf("diff: --from, --to, --src-board, --dst-board required")
+	if *from == "" || *to == "" {
+		return fmt.Errorf("diff: --from and --to required")
 	}
 
-	return cli.DiffBoards(*from, *to, *srcBoard, *dstBoard)
+	// Interactive board selection if not provided
+	var srcBoardID, dstBoardID string
+	if *srcBoard == "" {
+		bid, err := cli.InteractiveBoardSelection(*from)
+		if err != nil {
+			return fmt.Errorf("select source board: %w", err)
+		}
+		srcBoardID = bid
+	} else {
+		srcBoardID = *srcBoard
+	}
+
+	if *dstBoard == "" {
+		bid, err := cli.InteractiveBoardSelection(*to)
+		if err != nil {
+			return fmt.Errorf("select destination board: %w", err)
+		}
+		dstBoardID = bid
+	} else {
+		dstBoardID = *dstBoard
+	}
+
+	return cli.DiffBoards(*from, *to, srcBoardID, dstBoardID)
 }
 
 func handleMapping(args []string) error {

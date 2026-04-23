@@ -1,6 +1,10 @@
 # copycards mapping files and state
 .copycard/
 
+# Environment variables (contains API keys)
+.env
+.env.*
+
 # Binary
 copycards
 

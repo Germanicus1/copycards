@@ -60,6 +60,18 @@ export FB_KEY_DST="your_destination_api_key"
 
 Copycards will automatically expand these variables when loading the configuration.
 
+## State Directory (`.copycard/`)
+
+Copycards persists run state in a `.copycard/` directory. It's created on demand — you don't need to make it yourself, and it's listed in `.gitignore` so its contents stay out of version control.
+
+Two locations are used:
+
+- **`./.copycard/mapping.json`** (in the current working directory) — written after each non-dry-run copy. Stores src→dst ID translations for users, bins, ticket types, custom fields, and tickets. Re-runs consult this file and skip tickets that are already copied, which is what makes the `tickets copy` command idempotent.
+- **`~/.copycard/mapping.json`** (in `$HOME`) — what `mapping show` and `mapping reset` read. If you ran the copy from a directory other than `$HOME`, the two paths will diverge; re-run those commands from the same cwd you copied from, or move the file into `$HOME/.copycard/`.
+- **`~/.copycard/failed-posts/`** — forensic dump directory. Any POST or PUT that exhausts retries writes two files here: `<timestamp>-<METHOD>-<id>.json` (the full request body that was rejected) and `<timestamp>-<METHOD>-<id>.error.txt` (the terminal error, e.g. `CloudFront blocked request: max retries exceeded`). Nothing is dumped on successful runs. Best-effort — dump I/O errors are silently swallowed so they can never mask the original failure.
+
+Delete either directory freely: mapping loss means the next copy re-creates duplicates of anything not already in the destination, and failed-post dumps are purely diagnostic.
+
 ## Usage
 
 ### Commands
@@ -284,7 +296,7 @@ export FB_KEY_DST="your_api_key"
 
 **Solution:** Users must exist in both organizations and their IDs must match. If users have different IDs:
 1. Manually create a mapping by checking `copycards mapping show`
-2. Edit the mapping file at `.copycard/<src>-<dst>-<board_id>/mapping.json`
+2. Edit the mapping file at `.copycard/mapping.json` (see [State Directory](#state-directory-copycard))
 3. Add missing user mappings
 
 ### Bin Name Mismatch

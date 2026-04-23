@@ -25,21 +25,25 @@ func CopyTickets(srcProfile, dstProfile, srcBoardID, dstBoardID string, opts Cop
 		opts.Concurrency = 500
 	}
 
+	fmt.Println("Loading configuration...")
 	cfg, err := loadConfig()
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("Connecting to source organization...")
 	srcClient, err := makeClient(cfg, srcProfile, opts.Concurrency)
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("Connecting to destination organization...")
 	dstClient, err := makeClient(cfg, dstProfile, opts.Concurrency)
 	if err != nil {
 		return err
 	}
 
+	fmt.Println("Loading mapping file...")
 	// Load or create mapping file
 	m, err := mapping.Load(defaultMappingPath())
 	if err != nil {
@@ -218,10 +222,10 @@ func DiffBoards(srcProfile, dstProfile, srcBoardID, dstBoardID string) error {
 
 	// Enumerate all src tickets
 	var srcTickets []*TicketInfo
-	for _, bin := range srcBoard.Bins {
-		tickets, err := srcClient.ListTicketsByBin(bin.ID)
+	for _, binID := range srcBoard.Bins {
+		tickets, err := srcClient.ListTicketsByBin(binID)
 		if err != nil {
-			return fmt.Errorf("fetch tickets for bin %s: %w", bin.ID, err)
+			return fmt.Errorf("fetch tickets for bin %s: %w", binID, err)
 		}
 		for i := range tickets {
 			srcTickets = append(srcTickets, &TicketInfo{

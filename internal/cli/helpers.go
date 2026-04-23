@@ -10,7 +10,13 @@ import (
 )
 
 // defaultConfigPath returns the default config file path
+// This is called from CLI commands; if configPath is set globally, use that
+var GlobalConfigPath string
+
 func defaultConfigPath() string {
+	if GlobalConfigPath != "" {
+		return GlobalConfigPath
+	}
 	return filepath.Join(os.ExpandEnv("$HOME"), ".config", "copycards", "config.toml")
 }
 
