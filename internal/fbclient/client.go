@@ -21,11 +21,9 @@ import (
 var ErrCloudFrontBlocked = errors.New("CloudFront blocked request")
 
 type Client struct {
-	endpoint    string
-	apiKey      string
-	httpClient  *http.Client
-	concurrency int
-	semaphore   chan struct{}
+	endpoint   string
+	apiKey     string
+	httpClient *http.Client
 }
 
 // userAgentTransport injects a copycards User-Agent into every outgoing
@@ -45,12 +43,10 @@ func (t *userAgentTransport) RoundTrip(req *http.Request) (*http.Response, error
 }
 
 // NewClient creates a new Flowboards API client
-func NewClient(endpoint, apiKey string, concurrency int) *Client {
+func NewClient(endpoint, apiKey string) *Client {
 	return &Client{
-		endpoint:    endpoint,
-		apiKey:      apiKey,
-		concurrency: concurrency,
-		semaphore:   make(chan struct{}, concurrency),
+		endpoint: endpoint,
+		apiKey:   apiKey,
 		httpClient: &http.Client{
 			Timeout:   30 * time.Second,
 			Transport: &userAgentTransport{base: http.DefaultTransport},
@@ -211,9 +207,6 @@ func (c *Client) UploadAttachment(ticketID, filename string, data []byte) (*Atta
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("Content-Length", strconv.Itoa(len(data)))
 
-	c.acquire()
-	defer c.release()
-
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("upload attachment: %w", err)
@@ -236,9 +229,6 @@ func (c *Client) GetAttachment(ticketID, attachmentID string) ([]byte, error) {
 
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("bearer %s", c.apiKey))
-
-	c.acquire()
-	defer c.release()
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -263,9 +253,6 @@ func (c *Client) GetIDs(count int) ([]string, error) {
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("bearer %s", c.apiKey))
 
-	c.acquire()
-	defer c.release()
-
 	resp, err := c.doWithRetry(req)
 	if err != nil {
 		return nil, err
@@ -286,9 +273,6 @@ func (c *Client) get(path string, out interface{}) error {
 	url := c.endpoint + path
 	req, _ := http.NewRequest("GET", url, nil)
 	req.Header.Set("Authorization", fmt.Sprintf("bearer %s", c.apiKey))
-
-	c.acquire()
-	defer c.release()
 
 	resp, err := c.doWithRetry(req)
 	if err != nil {
@@ -316,9 +300,7 @@ func (c *Client) getAllBins() ([]Bin, error) {
 		req, _ := http.NewRequest("GET", url, nil)
 		req.Header.Set("Authorization", fmt.Sprintf("bearer %s", c.apiKey))
 
-		c.acquire()
 		resp, err := c.doWithRetry(req)
-		c.release()
 
 		if err != nil {
 			return nil, err
@@ -362,9 +344,6 @@ func (c *Client) post(path string, body []byte, out interface{}) error {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	c.acquire()
-	defer c.release()
-
 	resp, err := c.doWithRetry(req)
 	if err != nil {
 		dumpFailedBody("POST", path, body, err)
@@ -397,9 +376,6 @@ func (c *Client) put(path string, body []byte, out interface{}) error {
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-
-	c.acquire()
-	defer c.release()
 
 	resp, err := c.doWithRetry(req)
 	if err != nil {
@@ -526,10 +502,3 @@ func classifyResponse(resp *http.Response) (retry, cloudFront bool) {
 	return false, false
 }
 
-func (c *Client) acquire() {
-	c.semaphore <- struct{}{}
-}
-
-func (c *Client) release() {
-	<-c.semaphore
-}

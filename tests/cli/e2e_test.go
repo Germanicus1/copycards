@@ -163,8 +163,8 @@ func TestFullBoardCopyFlow(t *testing.T) {
 	defer dstServer.Close()
 
 	// Create clients
-	srcClient := fbclient.NewClient(srcServer.URL, "src-key", 4)
-	dstClient := fbclient.NewClient(dstServer.URL, "dst-key", 4)
+	srcClient := fbclient.NewClient(srcServer.URL, "src-key")
+	dstClient := fbclient.NewClient(dstServer.URL, "dst-key")
 
 	// Create empty mapping
 	m := &mapping.Mapping{
@@ -182,7 +182,6 @@ func TestFullBoardCopyFlow(t *testing.T) {
 	t.Run("DryRunDoesNotWrite", func(t *testing.T) {
 		opts := copier.CopyBoardOptions{
 			DryRun:      true,
-			Concurrency: 1,
 		}
 		err := copier.CopyBoard(srcClient, dstClient, "src-board", "dst-board", m, opts)
 		if err != nil {
@@ -200,7 +199,6 @@ func TestFullBoardCopyFlow(t *testing.T) {
 		createdTickets = make(map[string]*fbclient.Ticket) // Reset
 		opts := copier.CopyBoardOptions{
 			DryRun:      false,
-			Concurrency: 1,
 		}
 		err := copier.CopyBoard(srcClient, dstClient, "src-board", "dst-board", m, opts)
 		if err != nil {
@@ -358,8 +356,8 @@ func TestParentChildLinkRestoration(t *testing.T) {
 	}))
 	defer dstServer.Close()
 
-	srcClient := fbclient.NewClient(srcServer.URL, "src-key", 1)
-	dstClient := fbclient.NewClient(dstServer.URL, "dst-key", 1)
+	srcClient := fbclient.NewClient(srcServer.URL, "src-key")
+	dstClient := fbclient.NewClient(dstServer.URL, "dst-key")
 
 	m := &mapping.Mapping{
 		Users:        make(map[string]string),
@@ -374,7 +372,6 @@ func TestParentChildLinkRestoration(t *testing.T) {
 
 	opts := copier.CopyBoardOptions{
 		DryRun:      false,
-		Concurrency: 1,
 	}
 
 	err := copier.CopyBoard(srcClient, dstClient, "src-board", "dst-board", m, opts)
@@ -444,8 +441,8 @@ func TestMockAPIEndpoints(t *testing.T) {
 	}))
 	defer dstServer.Close()
 
-	srcClient := fbclient.NewClient(srcServer.URL, "src-key", 1)
-	dstClient := fbclient.NewClient(dstServer.URL, "dst-key", 1)
+	srcClient := fbclient.NewClient(srcServer.URL, "src-key")
+	dstClient := fbclient.NewClient(dstServer.URL, "dst-key")
 
 	m := &mapping.Mapping{
 		Users:        make(map[string]string),
@@ -460,7 +457,6 @@ func TestMockAPIEndpoints(t *testing.T) {
 
 	opts := copier.CopyBoardOptions{
 		DryRun:      false,
-		Concurrency: 1,
 	}
 
 	_ = copier.CopyBoard(srcClient, dstClient, "board1", "board2", m, opts)

@@ -48,8 +48,8 @@ func TestPreflightIdenticalBoards(t *testing.T) {
 	}))
 	defer dstServer.Close()
 
-	srcClient := fbclient.NewClient(srcServer.URL, "key", 1)
-	dstClient := fbclient.NewClient(dstServer.URL, "key", 1)
+	srcClient := fbclient.NewClient(srcServer.URL, "key")
+	dstClient := fbclient.NewClient(dstServer.URL, "key")
 
 	pf, err := copier.Preflight(srcClient, dstClient, "board1", "board2")
 	if err != nil {

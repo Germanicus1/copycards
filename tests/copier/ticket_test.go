@@ -177,7 +177,7 @@ func TestTranslateTicketWithChecklists(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := fbclient.NewClient(server.URL, "key", 1)
+	client := fbclient.NewClient(server.URL, "key")
 
 	srcTicket := &fbclient.Ticket{
 		ID:           "src-ticket-1",

@@ -69,7 +69,7 @@ Usage:
   copycards orgs verify <profile>
   copycards boards list --from <profile>
   copycards board verify --from <src> --to <dst> --src-board <id> --dst-board <id>
-  copycards tickets copy --from <src> --to <dst> --src-board <id> --dst-board <id> [--dry-run] [--concurrency N]
+  copycards tickets copy --from <src> --to <dst> --src-board <id> --dst-board <id> [--dry-run]
   copycards ticket copy <id> --from <src> --to <dst> --dst-board <id> [--with-children] [--dry-run]
   copycards diff --from <src> --to <dst> --src-board <id> --dst-board <id>
   copycards mapping show [--from <src> --to <dst> --src-board <id>]
@@ -183,7 +183,6 @@ func handleTickets(args []string) error {
 		srcBoard := fs.String("src-board", "", "source board ID (interactive if omitted)")
 		dstBoard := fs.String("dst-board", "", "destination board ID (interactive if omitted)")
 		dryRun := fs.Bool("dry-run", false, "preview changes without applying")
-		concurrency := fs.Int("concurrency", 4, "number of concurrent requests (1-500)")
 
 		if err := fs.Parse(rest); err != nil {
 			return err
@@ -216,8 +215,7 @@ func handleTickets(args []string) error {
 		}
 
 		opts := cli.CopyTicketsOptions{
-			DryRun:      *dryRun,
-			Concurrency: *concurrency,
+			DryRun: *dryRun,
 		}
 
 		return cli.CopyTickets(*from, *to, srcBoardID, dstBoardID, opts)

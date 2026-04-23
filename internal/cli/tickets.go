@@ -9,20 +9,11 @@ import (
 
 // CopyTicketsOptions holds flags for the tickets copy command
 type CopyTicketsOptions struct {
-	DryRun      bool
-	Concurrency int
+	DryRun bool
 }
 
 // CopyTickets copies all tickets between two boards
 func CopyTickets(srcProfile, dstProfile, srcBoardID, dstBoardID string, opts CopyTicketsOptions) error {
-	// Clamp concurrency
-	if opts.Concurrency < 1 {
-		opts.Concurrency = 1
-	}
-	if opts.Concurrency > 500 {
-		opts.Concurrency = 500
-	}
-
 	fmt.Println("Loading configuration...")
 	cfg, err := loadConfig()
 	if err != nil {
@@ -30,13 +21,13 @@ func CopyTickets(srcProfile, dstProfile, srcBoardID, dstBoardID string, opts Cop
 	}
 
 	fmt.Println("Connecting to source organization...")
-	srcClient, err := makeClient(cfg, srcProfile, opts.Concurrency)
+	srcClient, err := makeClient(cfg, srcProfile)
 	if err != nil {
 		return err
 	}
 
 	fmt.Println("Connecting to destination organization...")
-	dstClient, err := makeClient(cfg, dstProfile, opts.Concurrency)
+	dstClient, err := makeClient(cfg, dstProfile)
 	if err != nil {
 		return err
 	}
@@ -82,8 +73,7 @@ func CopyTickets(srcProfile, dstProfile, srcBoardID, dstBoardID string, opts Cop
 
 	// Run board copy
 	boardOpts := copier.CopyBoardOptions{
-		DryRun:      opts.DryRun,
-		Concurrency: opts.Concurrency,
+		DryRun: opts.DryRun,
 	}
 
 	if err := copier.CopyBoard(srcClient, dstClient, srcBoardID, dstBoardID, m, boardOpts); err != nil {
@@ -110,12 +100,12 @@ func CopyTicket(srcProfile, dstProfile, ticketID, dstBoardID string, opts struct
 		return err
 	}
 
-	srcClient, err := makeClient(cfg, srcProfile, 1)
+	srcClient, err := makeClient(cfg, srcProfile)
 	if err != nil {
 		return err
 	}
 
-	dstClient, err := makeClient(cfg, dstProfile, 1)
+	dstClient, err := makeClient(cfg, dstProfile)
 	if err != nil {
 		return err
 	}
@@ -190,12 +180,12 @@ func DiffBoards(srcProfile, dstProfile, srcBoardID, dstBoardID string) error {
 		return err
 	}
 
-	srcClient, err := makeClient(cfg, srcProfile, 1)
+	srcClient, err := makeClient(cfg, srcProfile)
 	if err != nil {
 		return err
 	}
 
-	_, err = makeClient(cfg, dstProfile, 1)
+	_, err = makeClient(cfg, dstProfile)
 	if err != nil {
 		return err
 	}

@@ -16,7 +16,7 @@ func ListBoards(orgProfile string) error {
 		return err
 	}
 
-	client, err := makeClient(cfg, orgProfile, 1)
+	client, err := makeClient(cfg, orgProfile)
 	if err != nil {
 		return err
 	}
@@ -52,12 +52,12 @@ func VerifyBoards(srcProfile, dstProfile, srcBoardID, dstBoardID string) error {
 		return err
 	}
 
-	srcClient, err := makeClient(cfg, srcProfile, 1)
+	srcClient, err := makeClient(cfg, srcProfile)
 	if err != nil {
 		return err
 	}
 
-	dstClient, err := makeClient(cfg, dstProfile, 1)
+	dstClient, err := makeClient(cfg, dstProfile)
 	if err != nil {
 		return err
 	}
@@ -123,7 +123,7 @@ func InteractiveBoardSelection(orgProfile string) (string, error) {
 		return "", err
 	}
 
-	client, err := makeClient(cfg, orgProfile, 1)
+	client, err := makeClient(cfg, orgProfile)
 	if err != nil {
 		return "", err
 	}

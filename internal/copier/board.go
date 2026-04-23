@@ -13,7 +13,6 @@ import (
 type CopyBoardOptions struct {
 	IncludeArchived bool
 	DryRun          bool
-	Concurrency     int
 }
 
 // CopyBoard copies all tickets from src board to dst board

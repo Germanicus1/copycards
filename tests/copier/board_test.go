@@ -49,8 +49,8 @@ func TestCopyBoardDryRun(t *testing.T) {
 	}))
 	defer dstServer.Close()
 
-	srcClient := fbclient.NewClient(srcServer.URL, "key", 1)
-	dstClient := fbclient.NewClient(dstServer.URL, "key", 1)
+	srcClient := fbclient.NewClient(srcServer.URL, "key")
+	dstClient := fbclient.NewClient(dstServer.URL, "key")
 
 	m := &mapping.Mapping{
 		Users:        make(map[string]string),
@@ -65,7 +65,6 @@ func TestCopyBoardDryRun(t *testing.T) {
 
 	opts := copier.CopyBoardOptions{
 		DryRun:      true,
-		Concurrency: 1,
 	}
 
 	err := copier.CopyBoard(srcClient, dstClient, "board1", "board2", m, opts)

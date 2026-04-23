@@ -49,7 +49,7 @@ func VerifyOrgAuth(orgName string) error {
 		return err
 	}
 
-	client, err := makeClient(cfg, orgName, 1)
+	client, err := makeClient(cfg, orgName)
 	if err != nil {
 		return err
 	}

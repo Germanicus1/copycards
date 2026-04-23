@@ -237,21 +237,9 @@ Tickets in src not yet copied to dst:
 Total: 2 ticket(s) remaining
 ```
 
-### Control Concurrency
-
-Limit API call concurrency (default: 4):
-
-```bash
-$ copycards tickets copy \
-    --from src --to dst \
-    --src-board board_main_id --dst-board board_dst_id \
-    --concurrency 2
-```
-
 ## Options
 
 - `--dry-run`: Simulate copy without making changes (creates no tickets, no mappings written)
-- `--concurrency N`: Control number of concurrent API requests (default: 4)
 - `--verbose`: Enable verbose logging
 
 ## Exit Codes

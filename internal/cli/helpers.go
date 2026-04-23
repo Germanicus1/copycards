@@ -38,7 +38,7 @@ func resolveEndpoint(org *config.OrgConfig) (string, error) {
 }
 
 // makeClient loads config, resolves endpoint, and returns an fbclient
-func makeClient(cfg *config.Config, profileName string, concurrency int) (*fbclient.Client, error) {
+func makeClient(cfg *config.Config, profileName string) (*fbclient.Client, error) {
 	org, err := cfg.GetOrg(profileName)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func makeClient(cfg *config.Config, profileName string, concurrency int) (*fbcli
 	if err != nil {
 		return nil, fmt.Errorf("org %q: %w", profileName, err)
 	}
-	return fbclient.NewClient(endpoint, org.APIKey, concurrency), nil
+	return fbclient.NewClient(endpoint, org.APIKey), nil
 }
 
 // loadConfig loads the config from the default path

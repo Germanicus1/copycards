@@ -22,7 +22,7 @@ func TestRetryOn500(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := fbclient.NewClient(server.URL, "test-key", 1)
+	client := fbclient.NewClient(server.URL, "test-key")
 	boards, err := client.ListBoards()
 
 	if err != nil {
@@ -44,7 +44,7 @@ func TestNoRetryOn404(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := fbclient.NewClient(server.URL, "test-key", 1)
+	client := fbclient.NewClient(server.URL, "test-key")
 	_, err := client.ListBoards()
 
 	if err == nil {
@@ -69,7 +69,7 @@ func TestRetryOn429(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := fbclient.NewClient(server.URL, "test-key", 1)
+	client := fbclient.NewClient(server.URL, "test-key")
 	boards, err := client.ListBoards()
 
 	if err != nil {
@@ -83,45 +83,6 @@ func TestRetryOn429(t *testing.T) {
 	}
 }
 
-func TestConcurrencyControl(t *testing.T) {
-	concurrent := 0
-	maxConcurrent := 0
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		concurrent++
-		if concurrent > maxConcurrent {
-			maxConcurrent = concurrent
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`[{"_id":"board1","name":"Test"}]`))
-		concurrent--
-	}))
-	defer server.Close()
-
-	// Create client with concurrency limit of 2
-	client := fbclient.NewClient(server.URL, "test-key", 2)
-
-	// Make 3 requests in parallel - should not exceed concurrency limit
-	done := make(chan error, 3)
-	for i := 0; i < 3; i++ {
-		go func() {
-			_, err := client.ListBoards()
-			done <- err
-		}()
-	}
-
-	// Wait for all requests
-	for i := 0; i < 3; i++ {
-		if err := <-done; err != nil {
-			t.Fatalf("Request failed: %v", err)
-		}
-	}
-
-	if maxConcurrent > 2 {
-		t.Errorf("Expected max 2 concurrent requests, got %d", maxConcurrent)
-	}
-}
-
 func TestGetBoardSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -130,7 +91,7 @@ func TestGetBoardSuccess(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := fbclient.NewClient(server.URL, "test-key", 1)
+	client := fbclient.NewClient(server.URL, "test-key")
 	board, err := client.GetBoard("board1")
 
 	if err != nil {
@@ -155,7 +116,7 @@ func TestCreateTicketSuccess(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := fbclient.NewClient(server.URL, "test-key", 1)
+	client := fbclient.NewClient(server.URL, "test-key")
 	ticket := &fbclient.Ticket{
 		ID:           "ticket1",
 		Name:         "Test Ticket",
@@ -180,7 +141,7 @@ func TestUpdateTicketSuccess(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := fbclient.NewClient(server.URL, "test-key", 1)
+	client := fbclient.NewClient(server.URL, "test-key")
 	updates := map[string]interface{}{
 		"name": "Updated Name",
 	}
@@ -201,7 +162,7 @@ func TestBearerTokenAuth(t *testing.T) {
 	}))
 	defer server.Close()
 
-	client := fbclient.NewClient(server.URL, "my-secret-key", 1)
+	client := fbclient.NewClient(server.URL, "my-secret-key")
 	_, err := client.ListBoards()
 
 	if err != nil {
