@@ -12,6 +12,12 @@ type CopyTicketsOptions struct {
 	DryRun bool
 }
 
+// CopySingleTicketOptions holds flags for the ticket copy command
+type CopySingleTicketOptions struct {
+	WithChildren bool
+	DryRun       bool
+}
+
 // CopyTickets copies all tickets between two boards
 func CopyTickets(srcProfile, dstProfile, srcBoardID, dstBoardID string, opts CopyTicketsOptions) error {
 	fmt.Println("Loading configuration...")
@@ -65,10 +71,7 @@ func CopyTickets(srcProfile, dstProfile, srcBoardID, dstBoardID string, opts Cop
 }
 
 // CopyTicket copies a single ticket from src to dst
-func CopyTicket(srcProfile, dstProfile, ticketID, dstBoardID string, opts struct {
-	WithChildren bool
-	DryRun       bool
-}) error {
+func CopyTicket(srcProfile, dstProfile, ticketID, dstBoardID string, opts CopySingleTicketOptions) error {
 	cfg, err := loadConfig()
 	if err != nil {
 		return err

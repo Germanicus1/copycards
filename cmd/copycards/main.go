@@ -256,10 +256,7 @@ func handleTicket(args []string) error {
 			return fmt.Errorf("ticket copy: --from, --to, --dst-board required")
 		}
 
-		opts := struct {
-			WithChildren bool
-			DryRun       bool
-		}{
+		opts := cli.CopySingleTicketOptions{
 			WithChildren: *withChildren,
 			DryRun:       *dryRun,
 		}
