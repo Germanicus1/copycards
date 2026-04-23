@@ -311,7 +311,7 @@ Bugs and feature requests: <https://github.com/Germanicus1/copycards/issues>.
 
 ## License
 
-Copycards is released under the **[Hippocratic License 3.0 (Core)](https://firstdonoharm.dev/version/3/0/core.txt)**.
+Copycards is released under the [Hippocratic License 3.0 (Core)](https://firstdonoharm.dev/version/3/0/core.txt).
 
 In short: you may use, modify, and distribute copycards freely — for personal, educational, commercial, or research purposes — provided your use does not violate the human rights standards enumerated by the Hippocratic License (rooted in the UN Universal Declaration of Human Rights and related international law). If your use complies with those standards, no further permission is required.
 
