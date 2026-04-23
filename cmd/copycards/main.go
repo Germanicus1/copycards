@@ -61,6 +61,20 @@ func main() {
 	os.Exit(exitCode)
 }
 
+// resolveBoardID returns the flag value if set, otherwise prompts the user
+// to pick a board interactively. role is woven into error messages, e.g.
+// "source" or "destination".
+func resolveBoardID(profile, flagValue, role string) (string, error) {
+	if flagValue != "" {
+		return flagValue, nil
+	}
+	bid, err := cli.InteractiveBoardSelection(profile)
+	if err != nil {
+		return "", fmt.Errorf("select %s board: %w", role, err)
+	}
+	return bid, nil
+}
+
 func printUsage() {
 	fmt.Fprintf(os.Stderr, `copycards - Copy Flowboards tickets between organizations
 
@@ -138,26 +152,13 @@ func handleBoards(args []string) error {
 			return fmt.Errorf("board verify: --from and --to required")
 		}
 
-		// Interactive board selection if not provided
-		var srcBoardID, dstBoardID string
-		if *srcBoard == "" {
-			bid, err := cli.InteractiveBoardSelection(*from)
-			if err != nil {
-				return fmt.Errorf("select source board: %w", err)
-			}
-			srcBoardID = bid
-		} else {
-			srcBoardID = *srcBoard
+		srcBoardID, err := resolveBoardID(*from, *srcBoard, "source")
+		if err != nil {
+			return err
 		}
-
-		if *dstBoard == "" {
-			bid, err := cli.InteractiveBoardSelection(*to)
-			if err != nil {
-				return fmt.Errorf("select destination board: %w", err)
-			}
-			dstBoardID = bid
-		} else {
-			dstBoardID = *dstBoard
+		dstBoardID, err := resolveBoardID(*to, *dstBoard, "destination")
+		if err != nil {
+			return err
 		}
 
 		return cli.VerifyBoards(*from, *to, srcBoardID, dstBoardID)
@@ -192,26 +193,13 @@ func handleTickets(args []string) error {
 			return fmt.Errorf("tickets copy: --from and --to required")
 		}
 
-		// Interactive board selection if not provided
-		var srcBoardID, dstBoardID string
-		if *srcBoard == "" {
-			bid, err := cli.InteractiveBoardSelection(*from)
-			if err != nil {
-				return fmt.Errorf("select source board: %w", err)
-			}
-			srcBoardID = bid
-		} else {
-			srcBoardID = *srcBoard
+		srcBoardID, err := resolveBoardID(*from, *srcBoard, "source")
+		if err != nil {
+			return err
 		}
-
-		if *dstBoard == "" {
-			bid, err := cli.InteractiveBoardSelection(*to)
-			if err != nil {
-				return fmt.Errorf("select destination board: %w", err)
-			}
-			dstBoardID = bid
-		} else {
-			dstBoardID = *dstBoard
+		dstBoardID, err := resolveBoardID(*to, *dstBoard, "destination")
+		if err != nil {
+			return err
 		}
 
 		opts := cli.CopyTicketsOptions{
@@ -283,26 +271,13 @@ func handleDiff(args []string) error {
 		return fmt.Errorf("diff: --from and --to required")
 	}
 
-	// Interactive board selection if not provided
-	var srcBoardID, dstBoardID string
-	if *srcBoard == "" {
-		bid, err := cli.InteractiveBoardSelection(*from)
-		if err != nil {
-			return fmt.Errorf("select source board: %w", err)
-		}
-		srcBoardID = bid
-	} else {
-		srcBoardID = *srcBoard
+	srcBoardID, err := resolveBoardID(*from, *srcBoard, "source")
+	if err != nil {
+		return err
 	}
-
-	if *dstBoard == "" {
-		bid, err := cli.InteractiveBoardSelection(*to)
-		if err != nil {
-			return fmt.Errorf("select destination board: %w", err)
-		}
-		dstBoardID = bid
-	} else {
-		dstBoardID = *dstBoard
+	dstBoardID, err := resolveBoardID(*to, *dstBoard, "destination")
+	if err != nil {
+		return err
 	}
 
 	return cli.DiffBoards(*from, *to, srcBoardID, dstBoardID)
