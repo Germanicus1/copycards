@@ -1,326 +1,314 @@
 # copycards
 
-Copycards is a command-line tool for copying Flowboards tickets between organizations. It handles field translation, user mapping, nested ticket hierarchies, and supports dry-run mode for verification before executing copies.
+Copycards is a command-line tool for copying [Flowboards](https://fb.mauvable.com/) tickets from one organisation to another. It reconciles bins, ticket types, and custom fields by name, maps users by email, preserves parent/child hierarchies, and is idempotent across re-runs.
+
+## What it does
+
+Flowboards doesn't offer an official cross-organisation copy for tickets. Copycards fills that gap:
+
+- **Preflight** compares the source and destination boards, verifying that every bin, used ticket type, and used custom field in the source has a matching item in the destination (by name). Unmapped users surface here too.
+- **Copy** fetches every ticket from each bin on the source board, allocates a fresh dst-side ID from the `/ids` endpoint, translates the payload (rewriting bin, type, user, custom-field, and checklist IDs), and posts it to the destination board.
+- **Parent/child links** are restored in a second pass after all tickets exist.
+- **A persistent `mapping.json`** records every src→dst ID pair. Re-runs consult it and skip tickets that are already copied, so interrupted migrations resume cleanly.
+- **CloudFront WAF fallbacks**: if the full create is blocked, copycards retries as a minimal-create + `$partial` update. If the update is still blocked, byte-level sanitisation of the description is attempted (zero-width spaces in SQL-like keywords, spacing around `.../`) with an audit annotation appended so the change is visible.
+
+## Prerequisites
+
+- **Go ≥ 1.25** (the module targets 1.25.6 — check with `go version`)
+- A Flowboards account with API keys for both the source and destination organisations
 
 ## Installation
 
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/you/copycards
-   cd copycards
-   ```
+### From source
 
-2. Build the binary:
-   ```bash
-   go build -o copycards ./cmd/copycards
-   ```
+```bash
+git clone git@github.com:Germanicus1/copycards.git
+cd copycards
+go build -o copycards ./cmd/copycards
+```
 
-3. Add to your PATH:
-   ```bash
-   sudo mv copycards /usr/local/bin/
-   # Or add the current directory to PATH
-   export PATH=$PATH:$(pwd)
-   ```
+Either move the binary into your `PATH`:
 
-## Configuration
+```bash
+sudo mv copycards /usr/local/bin/
+```
 
-### Config File Location
+…or install directly with `go install`:
 
-By default copycards reads `~/.config/copycards/config.toml`. Override the
-location with `--config <path>` — the flag value takes precedence for the
-duration of the run.
+```bash
+go install ./cmd/copycards
+# binary lands in $(go env GOBIN) or $(go env GOPATH)/bin
+```
 
-### Configuration Format
+## Quick start
 
-Create a TOML file with organization profiles:
+A full end-to-end migration takes five steps.
+
+**1. Set your API keys.** Copy `example.env` and fill in the values, then source it into your shell:
+
+```bash
+cp example.env .env
+# edit .env to set FB_KEY_SRC and FB_KEY_DST
+source .env
+```
+
+**2. Create a config file** at `~/.config/copycards/config.toml` (or anywhere — pass `--config <path>` to pick):
 
 ```toml
 default_from = "src"
-default_to = "dst"
+default_to   = "dst"
 
 [orgs.src]
-org_id = "org_src_id"
-api_key = "env:FB_KEY_SRC"  # References environment variable FB_KEY_SRC
-endpoint = "https://api.flowboards.com/v1"  # Optional, uses default if omitted
+org_id  = "abc123"
+api_key = "env:FB_KEY_SRC"
 
 [orgs.dst]
-org_id = "org_dst_id"
-api_key = "env:FB_KEY_DST"  # References environment variable FB_KEY_DST
+org_id  = "xyz789"
+api_key = "env:FB_KEY_DST"
 ```
 
-### Environment Variable Expansion
+`endpoint` is optional — when omitted, copycards discovers the REST URL via Flowboards' `/rest-directory/2/<org_id>` and caches it for 24 hours under `~/.cache/copycards/`.
 
-API keys can reference environment variables using the `env:` prefix. This allows you to keep sensitive credentials out of configuration files:
+**3. Verify both orgs authenticate:**
 
 ```bash
-export FB_KEY_SRC="your_source_api_key"
-export FB_KEY_DST="your_destination_api_key"
+copycards orgs verify src
+copycards orgs verify dst
 ```
 
-Copycards will automatically expand these variables when loading the configuration.
+**4. Pick the boards and preflight:**
 
-## State Directory (`.copycard/`)
+```bash
+# interactive board picker for each org
+copycards board verify --from src --to dst
+```
 
-Copycards persists run state in a `.copycard/` directory. It's created on demand — you don't need to make it yourself, and it's listed in `.gitignore` so its contents stay out of version control.
+Preflight lists every mapping it derived and, if the boards are incompatible, a grouped report of what's missing. Fix those on the destination (add bins, create matching types, etc.) and re-run until it reports *Boards are compatible*.
 
-Two locations are used:
+**5. Dry-run, then copy for real:**
 
-- **`./.copycard/mapping.json`** (in the current working directory) — written after each non-dry-run copy. Stores src→dst ID translations for users, bins, ticket types, custom fields, and tickets. Re-runs consult this file and skip tickets that are already copied, which is what makes the `tickets copy` command idempotent.
-- **`~/.copycard/mapping.json`** (in `$HOME`) — what `mapping show` and `mapping reset` read. If you ran the copy from a directory other than `$HOME`, the two paths will diverge; re-run those commands from the same cwd you copied from, or move the file into `$HOME/.copycard/`.
-- **`~/.copycard/failed-posts/`** — forensic dump directory. Any POST or PUT that exhausts retries writes two files here: `<timestamp>-<METHOD>-<id>.json` (the full request body that was rejected) and `<timestamp>-<METHOD>-<id>.error.txt` (the terminal error, e.g. `CloudFront blocked request: max retries exceeded`). Nothing is dumped on successful runs. Best-effort — dump I/O errors are silently swallowed so they can never mask the original failure.
+```bash
+copycards tickets copy --from src --to dst \
+  --src-board <src-board-id> --dst-board <dst-board-id> --dry-run
 
-Delete either directory freely: mapping loss means the next copy re-creates duplicates of anything not already in the destination, and failed-post dumps are purely diagnostic.
+copycards tickets copy --from src --to dst \
+  --src-board <src-board-id> --dst-board <dst-board-id>
+```
 
-## Usage
+If the run is interrupted, re-run the same command — already-copied tickets are skipped.
 
-### Commands
+## Configuration
+
+### Config file location
+
+By default copycards reads `~/.config/copycards/config.toml`. Override with `--config <path>` — the flag value takes precedence for the duration of the run.
+
+### Format
+
+```toml
+default_from = "src"
+default_to   = "dst"
+
+[orgs.src]
+org_id   = "org_src_id"
+api_key  = "env:FB_KEY_SRC"
+# endpoint = "https://fb.mauvable.com/..."   # optional — auto-discovered if omitted
+
+[orgs.dst]
+org_id  = "org_dst_id"
+api_key = "env:FB_KEY_DST"
+```
+
+Fields:
+
+- `org_id` (required) — your organisation ID in Flowboards.
+- `api_key` (required) — either a literal token or `env:VARNAME` to read from an environment variable. The `env:` form is strongly recommended; plaintext keys in a config on disk are almost always a mistake.
+- `endpoint` (optional) — override auto-discovery. Useful for testing against mock servers.
+
+### Environment variable expansion
+
+Any `api_key = "env:FOO"` is resolved by reading `$FOO` when the config is loaded. If the variable is unset, copycards refuses to start with `env var FOO not set for org <name>`. Keep your secrets in a `.env`-style file that you `source` before invoking copycards — `example.env` ships with the two variable names the default config uses.
+
+### Endpoint discovery
+
+When no `endpoint` is set on an org, copycards calls `https://fb.mauvable.com/rest-directory/2/<org_id>` with the org's API key, caches the returned `restUrlPrefix` in `~/.cache/copycards/endpoint-<org_id>.json` for 24 hours, and uses it for all subsequent calls.
+
+## State directory (`.copycard/`)
+
+Copycards persists run state in `.copycard/`. It's created on demand — you don't need to make it yourself, and it's git-ignored.
+
+- **`./.copycard/mapping.json`** — the src→dst ID translation table. Written after each non-dry-run copy in the cwd. Re-runs consult it to skip already-copied tickets, which is what makes `tickets copy` idempotent.
+- **`~/.copycard/mapping.json`** — what `mapping show` and `mapping reset` read. If you ran the copy from a directory other than `$HOME`, the two paths will diverge; run `mapping show` from the same cwd, or move the file into `$HOME/.copycard/`.
+- **`~/.copycard/failed-posts/`** — forensic dump directory. Any POST/PUT that exhausts retries writes `<timestamp>-<METHOD>-<id>.json` (the full request body) and `<timestamp>-<METHOD>-<id>.error.txt` (the terminal error). Nothing is dumped on successful runs.
+
+Delete either directory freely. Mapping loss means the next copy re-creates duplicates of anything not already in the destination; failed-post dumps are purely diagnostic.
+
+## Commands
 
 #### orgs list
-List all configured organization profiles.
 ```bash
 copycards orgs list
 ```
+Lists configured org profiles with their resolved endpoints.
 
 #### orgs verify
-Verify connectivity to an organization.
 ```bash
 copycards orgs verify <profile>
 ```
+Confirms the API key works by fetching the board list.
 
 #### boards list
-List all boards in an organization.
 ```bash
 copycards boards list --from <profile>
 ```
+Interactive numbered menu of boards in an org.
 
 #### board verify
-Verify compatibility between source and destination boards. Generates field, bin, and user mappings.
 ```bash
-copycards board verify --from <src> --to <dst> --src-board <id> --dst-board <id>
+copycards board verify --from <src> --to <dst> [--src-board <id>] [--dst-board <id>]
 ```
+Runs preflight. Omitting either board flag triggers an interactive picker. Reports the derived bin/type/field/user mappings, or a grouped list of incompatibilities.
 
 #### tickets copy
-Copy all tickets from source board to destination board.
 ```bash
-copycards tickets copy \
-  --from <src> --to <dst> \
+copycards tickets copy --from <src> --to <dst> \
   --src-board <id> --dst-board <id> \
-  [--dry-run] \
-  [--concurrency N]
-```
-
-#### ticket copy
-Copy a single ticket with optional children.
-```bash
-copycards ticket copy <id> \
-  --from <src> --to <dst> \
-  --dst-board <id> \
-  [--with-children] \
   [--dry-run]
 ```
+Full board copy: preflight → enumerate → topologically sort → create tickets → restore parent/child links. Idempotent.
+
+#### ticket copy
+```bash
+copycards ticket copy <id> --from <src> --to <dst> \
+  --dst-board <id> \
+  [--with-children] [--dry-run]
+```
+Copy a single ticket. `--with-children` pulls the subtree.
 
 #### diff
-Show tickets in source board not yet copied to destination.
 ```bash
 copycards diff --from <src> --to <dst> --src-board <id> --dst-board <id>
 ```
+Lists source tickets not yet present in the mapping — useful to see what a partial run still has to pick up.
 
 #### mapping show
-Display current field and user mappings.
 ```bash
-copycards mapping show [--from <src> --to <dst> --src-board <id>]
+copycards mapping show
 ```
+Prints summary counts for the current `~/.copycard/mapping.json` and the first 20 ticket mappings.
 
 #### mapping reset
-Clear stored mappings to force re-verification.
 ```bash
-copycards mapping reset [--from <src> --to <dst> --src-board <id>]
+copycards mapping reset
 ```
+Deletes `~/.copycard/mapping.json` after confirmation.
 
-## Examples
+## How it works
 
-### Basic Workflow: List Organizations
+### Preflight
 
-```bash
-$ copycards orgs list
-Available organizations:
-  src (org_src_id)
-  dst (org_dst_id)
-```
+`copier.Preflight` calls:
+- `GET /boards/<id>` on each side to get the bin-ID list.
+- `GET /bins` (paginated) on each side to resolve bin IDs to names.
+- `GET /tickets?bin_id=<id>` for every bin on the source, collecting the set of ticket types and custom fields actually in use.
+- `GET /ticket-types`, `GET /custom-fields`, `GET /users` on each side.
 
-### List Boards in Source Organization
+Matching is name-based for bins and types, `(name, type)` composite for custom fields, and email for users. Unused source types/fields are deliberately ignored — you don't need a destination equivalent for something no ticket references.
 
-```bash
-$ copycards boards list --from src
-Boards in organization "src":
+### ID mapping & idempotency
 
-[1] Main Board [board_main_id]
-[2] Secondary [board_secondary_id]
-```
+Every discovered or derived src→dst pair is stored in `Mapping` (`internal/mapping/mapping.go`): bins, ticket types, custom fields, users, user groups, tickets, comments, attachments. Load-modify-save per run. Before copying a ticket, `CopyTicket` checks `m.GetTicketDst(srcID)` — if non-empty and `--force` isn't set, the ticket is skipped with a "SKIPPED" log line.
 
-### Verify Board Compatibility
+### WAF fallbacks
 
-Before copying, verify that the destination board can accept tickets from the source:
+Flowboards sits behind CloudFront with AWS WAF managed rules. A full ticket POST containing natural English can occasionally trip the SQL-injection rule set (keyword density) or path-traversal rule (substrings like `.../`). Copycards layers three retry strategies:
 
-```bash
-$ copycards board verify --from src --to dst --src-board board_main_id --dst-board board_dst_id
-Boards are compatible
+1. **Retry with backoff.** Transient 5xx / 429 / CloudFront 403 are retried with exponential backoff up to 6 attempts.
+2. **Two-step create.** On sustained WAF block, create a minimal ticket (id, name, bin, type, order) then apply the remainder via `$partial` update. The src↔dst mapping is recorded as soon as the minimal POST succeeds so re-runs don't double-create.
+3. **Sanitise & retry.** If the `$partial` is itself WAF-blocked, byte-level edits are applied to the description: zero-width spaces inserted into SQL-like keywords (`select`, `from`, `where`, `union`, `table`, `having`, …), and `.../` → `... /`. An audit note is appended. The specifics go to stdout; the note itself omits trigger keywords to avoid tripping the same rules.
 
-Mappings:
+### Retry & resumption
 
-  Bins:
-    "To Do" -> "Backlog"
-    "In Progress" -> "Active"
-    "Done" -> "Completed"
+The HTTP client (`internal/fbclient/client.go`) handles `req.GetBody` body rewind between attempts, pagination via the `page-token` response header, and a `copycards/1.0` User-Agent (the default Go `Go-http-client/1.1` is often blocklisted at the edge).
 
-  Ticket Types:
-    "Feature" -> "Enhancement"
-    "Bug" -> "Defect"
+## What's not supported
 
-  Users:
-    user_src_1 -> user_dst_1
-    user_src_2 -> user_dst_2
-```
-
-### Dry-Run: Preview What Would Be Copied
-
-Always run with `--dry-run` first to verify the operation:
-
-```bash
-$ copycards tickets copy \
-    --from src --to dst \
-    --src-board board_main_id --dst-board board_dst_id \
-    --dry-run
-WOULD COPY: ticket FEAT-1 (Implement auth)
-WOULD COPY: ticket FEAT-2 (Add logging)
-WOULD COPY: ticket BUG-3 (Fix null pointer)
-Copy summary: 0 copied, 0 skipped, 0 failed
-```
-
-### Real Copy: Execute the Operation
-
-```bash
-$ copycards tickets copy \
-    --from src --to dst \
-    --src-board board_main_id --dst-board board_dst_id
-TICKET FEAT-1 → FEAT-1-copy (Implement auth)
-TICKET FEAT-2 → FEAT-2-copy (Add logging)
-TICKET BUG-3 → BUG-3-copy (Fix null pointer)
-Copy summary: 3 copied, 0 skipped, 0 failed
-```
-
-### Copy Single Ticket with Children
-
-```bash
-$ copycards ticket copy EPIC-1 \
-    --from src --to dst \
-    --dst-board board_dst_id \
-    --with-children
-TICKET EPIC-1 → EPIC-1-copy (Q4 Roadmap)
-TICKET STORY-1 → STORY-1-copy (Feature A)
-TICKET STORY-2 → STORY-2-copy (Feature B)
-Copy summary: 3 copied, 0 skipped, 0 failed
-```
-
-### Check Progress
-
-See which tickets are still pending copy:
-
-```bash
-$ copycards diff --from src --to dst --src-board board_main_id --dst-board board_dst_id
-Tickets in src not yet copied to dst:
-
-  FEAT-5 - Add search
-  BUG-10 - Handle edge case
-
-Total: 2 ticket(s) remaining
-```
+- **Attachments.** File copy is not implemented — the corresponding flag and stub functions were removed as of the last cleanup.
+- **Comments.** Same — not implemented.
+- **Parallel ticket copy.** Copies run serially. Parallelism would need goroutines + bounded concurrency + mapping-file write serialisation + error aggregation; it's deferred until there's a clear need.
 
 ## Options
 
-- `--dry-run`: Simulate copy without making changes (creates no tickets, no mappings written)
-- `--verbose`: Enable verbose logging
+- `--dry-run` — simulate a copy without making changes (creates no tickets, no mappings written).
+- `--config <path>` — override the default config file path.
 
-## Exit Codes
+## Exit codes
 
-- `0`: Success - operation completed without errors
-- `1`: Validation failure - configuration error, missing profile, board incompatibility, unmapped fields
-- `2`: Execution error - API errors, network issues, permission denied, quota exceeded
+- `0` — success.
+- `1` — validation failure (configuration error, missing profile, board incompatibility).
+- `2` — execution error (API failures, network, permission denied, quota).
 
 ## Troubleshooting
 
-### Missing Environment Variables
+### `env var FB_KEY_SRC not set for org src`
+Source your `.env` (or equivalent) before running copycards: `source .env`.
 
-**Error:** `env var FB_KEY_SRC not set for org src`
+### `incompatible boards: bin "To Do" not found in destination`
+The destination board has no bin named `To Do`. Add it in the Flowboards UI, or rename the source bin.
 
-**Solution:** Set the required environment variables:
+**"exists in dst org but not on this board"** — the bin *name* does exist somewhere in the destination org, just not on the board you picked. Either add it to the board or pick a different destination board.
+
+### `ticket FEAT-1: assigned to unmapped user user_src_123`
+The assigned user on the source doesn't have a matching email in the destination org. Either invite them in Flowboards, unassign them on the source ticket, or hand-edit the mapping — `~/.copycard/mapping.json` has a `users` block you can add to. Stop, edit, restart the copy.
+
+### Persistent CloudFront 403s
+Check `~/.copycard/failed-posts/` — each file pair shows the exact payload and error. Patterns that trip WAF commonly include long SQL-keyword runs and `.../` in URLs. Copycards' sanitiser handles these automatically as a last resort, but fundamentally unmutable content (name fields, obviously structured API keys in a description, …) requires manually editing the source ticket.
+
+### `load mapping: invalid JSON`
+The mapping file is corrupted. Inspect it at `~/.copycard/mapping.json`. If unrecoverable:
 ```bash
-export FB_KEY_SRC="your_api_key"
-export FB_KEY_DST="your_api_key"
+copycards mapping reset
+copycards board verify --from src --to dst --src-board <id> --dst-board <id>
 ```
 
-### Unmapped Users
+## Development
 
-**Error:** `ticket FEAT-1: assigned to unmapped user user_src_123`
-
-**Solution:** Users must exist in both organizations and their IDs must match. If users have different IDs:
-1. Manually create a mapping by checking `copycards mapping show`
-2. Edit the mapping file at `.copycard/mapping.json` (see [State Directory](#state-directory-copycard))
-3. Add missing user mappings
-
-### Bin Name Mismatch
-
-**Error:** `incompatible boards: bin "To Do" not found in destination`
-
-**Solution:** The source and destination boards must have compatible bin names. You can:
-1. Add the missing bin to the destination board
-2. Or use board verify to see the mapping and adjust destination bins to match source
-
-### Field Type Mismatch
-
-**Error:** `incompatible boards: field "priority" type mismatch`
-
-**Solution:** The source and destination boards have fields with the same name but different types. Either:
-1. Rename the field in one board
-2. Or manually map the field using a different approach
-
-### Network Timeouts
-
-**Error:** `request failed: context deadline exceeded`
-
-**Solution:** The API is slow or network is unstable. Try:
-1. Reduce concurrency: `--concurrency 2`
-2. Increase timeout (if available): Check environment or configuration
-3. Run during off-peak hours
-4. Break into smaller copy operations
-
-### Quota Exceeded
-
-**Error:** `request failed: 429 Too Many Requests`
-
-**Solution:** You've exceeded API rate limits. Try:
-1. Wait a few minutes before retrying
-2. Reduce concurrency: `--concurrency 2`
-3. Copy in smaller batches
-
-### Mapping File Issues
-
-**Error:** `load mapping: invalid JSON`
-
-**Solution:** Delete the corrupted mapping file and start over:
-```bash
-copycards mapping reset --from src --to dst --src-board board_id
-copycards board verify --from src --to dst --src-board board_id --dst-board board_id
-```
-
-## Contributing
-
-Contributions are welcome. Please ensure all tests pass:
+### Running tests
 
 ```bash
 go test ./... -v
 ```
 
+The fbclient resilience tests hit real retry-backoff paths and take ~30s — expect that on a full run. Individual packages:
+
+```bash
+go test ./tests/copier/... -v          # preflight, board, ticket, sanitise
+go test ./tests/fbclient/... -v        # HTTP client + pagination + WAF
+go test ./tests/cli/... -v             # integration + e2e flows
+```
+
+### Project layout
+
+```
+cmd/copycards/          # entrypoint: flag parsing, subcommand dispatch
+internal/cli/           # command implementations (ListOrgs, CopyTickets, …)
+internal/config/        # TOML loader + endpoint discovery
+internal/copier/        # preflight, board/ticket copy, WAF sanitiser
+internal/fbclient/      # HTTP client for Flowboards (retry, pagination, dumps)
+internal/mapping/       # persistent src↔dst ID store
+tests/                  # external-package tests mirroring internal/
+docs/superpowers/       # specs and plans
+specs/                  # PRD
+```
+
+### Contributing
+
+Pull requests welcome. Please keep the test suite green (`go test ./...`) and match the existing commit-message style (Conventional Commits: `fix:`, `refactor:`, `feat:`, `test:`, `docs:`).
+
+## Issues & support
+
+Bugs and feature requests: <https://github.com/Germanicus1/copycards/issues>.
+
 ## License
 
-[Add your license here]
+TBD — not yet licensed for public distribution.
