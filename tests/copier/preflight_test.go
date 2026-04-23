@@ -15,7 +15,11 @@ func TestPreflightIdenticalBoards(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/boards/board1":
-			w.Write([]byte(`{"_id":"board1","name":"Board","bins":[{"_id":"bin1","name":"Backlog"}]}`))
+			w.Write([]byte(`{"_id":"board1","name":"Board","bins":["bin1"]}`))
+		case "/bins":
+			w.Write([]byte(`[{"_id":"bin1","name":"Backlog"}]`))
+		case "/tickets":
+			w.Write([]byte(`[{"_id":"ticket1","name":"Task","bin_id":"bin1","ticketType_id":"type1","order":1,"customFields":{"field1":"3"}}]`))
 		case "/ticket-types":
 			w.Write([]byte(`[{"_id":"type1","name":"Story"}]`))
 		case "/custom-fields":
@@ -31,7 +35,9 @@ func TestPreflightIdenticalBoards(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/boards/board2":
-			w.Write([]byte(`{"_id":"board2","name":"Board","bins":[{"_id":"bin2","name":"Backlog"}]}`))
+			w.Write([]byte(`{"_id":"board2","name":"Board","bins":["bin2"]}`))
+		case "/bins":
+			w.Write([]byte(`[{"_id":"bin2","name":"Backlog"}]`))
 		case "/ticket-types":
 			w.Write([]byte(`[{"_id":"type2","name":"Story"}]`))
 		case "/custom-fields":
@@ -51,7 +57,7 @@ func TestPreflightIdenticalBoards(t *testing.T) {
 	}
 
 	if !pf.Valid {
-		t.Errorf("Expected valid boards, got errors: %v", pf.Errors)
+		t.Errorf("Expected valid boards, got errors:\n%s", pf.FormatErrors())
 	}
 
 	if pf.BinMapping["bin1"] != "bin2" {

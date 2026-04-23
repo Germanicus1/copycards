@@ -36,11 +36,7 @@ func TestFullBoardCopyFlow(t *testing.T) {
 			w.Write([]byte(`{
 				"_id": "src-board",
 				"name": "Source Board",
-				"bins": [
-					{"_id": "src-bin-backlog", "name": "Backlog"},
-					{"_id": "src-bin-inprogress", "name": "In Progress"},
-					{"_id": "src-bin-done", "name": "Done"}
-				]
+				"bins": ["src-bin-backlog", "src-bin-inprogress", "src-bin-done"]
 			}`))
 		case "/tickets/src-ticket-1":
 			w.Write([]byte(`{"_id": "src-ticket-1", "name": "Feature A", "bin_id": "src-bin-backlog", "ticketType_id": "src-type-story", "order": 1.0, "description": "Description A", "assigned_ids": ["src-user-1"], "watch_ids": []}`))
@@ -65,6 +61,12 @@ func TestFullBoardCopyFlow(t *testing.T) {
 			} else {
 				w.Write([]byte(`[]`))
 			}
+		case "/bins":
+			w.Write([]byte(`[
+				{"_id": "src-bin-backlog", "name": "Backlog"},
+				{"_id": "src-bin-inprogress", "name": "In Progress"},
+				{"_id": "src-bin-done", "name": "Done"}
+			]`))
 		case "/ticket-types":
 			w.Write([]byte(`[
 				{"_id": "src-type-story", "name": "Story"},
@@ -96,12 +98,14 @@ func TestFullBoardCopyFlow(t *testing.T) {
 			w.Write([]byte(`{
 				"_id": "dst-board",
 				"name": "Destination Board",
-				"bins": [
-					{"_id": "dst-bin-backlog", "name": "Backlog"},
-					{"_id": "dst-bin-inprogress", "name": "In Progress"},
-					{"_id": "dst-bin-done", "name": "Done"}
-				]
+				"bins": ["dst-bin-backlog", "dst-bin-inprogress", "dst-bin-done"]
 			}`))
+		case "/bins":
+			w.Write([]byte(`[
+				{"_id": "dst-bin-backlog", "name": "Backlog"},
+				{"_id": "dst-bin-inprogress", "name": "In Progress"},
+				{"_id": "dst-bin-done", "name": "Done"}
+			]`))
 		case "/ticket-types":
 			w.Write([]byte(`[
 				{"_id": "dst-type-story", "name": "Story"},
@@ -281,7 +285,7 @@ func TestParentChildLinkRestoration(t *testing.T) {
 			w.Write([]byte(`{
 				"_id": "src-board",
 				"name": "Source Board",
-				"bins": [{"_id": "src-bin-1", "name": "Backlog"}]
+				"bins": ["src-bin-1"]
 			}`))
 		case "/tickets/src-epic-1":
 			w.Write([]byte(`{"_id": "src-epic-1", "name": "Epic", "bin_id": "src-bin-1", "ticketType_id": "src-type-epic", "order": 1}`))
@@ -292,6 +296,8 @@ func TestParentChildLinkRestoration(t *testing.T) {
 				{"_id": "src-epic-1", "name": "Epic", "bin_id": "src-bin-1", "ticketType_id": "src-type-epic", "order": 1},
 				{"_id": "src-story-1", "name": "Story 1", "bin_id": "src-bin-1", "ticketType_id": "src-type-story", "order": 2}
 			]`))
+		case "/bins":
+			w.Write([]byte(`[{"_id": "src-bin-1", "name": "Backlog"}]`))
 		case "/ticket-types":
 			w.Write([]byte(`[
 				{"_id": "src-type-epic", "name": "Epic"},
@@ -322,8 +328,10 @@ func TestParentChildLinkRestoration(t *testing.T) {
 			w.Write([]byte(`{
 				"_id": "dst-board",
 				"name": "Destination Board",
-				"bins": [{"_id": "dst-bin-1", "name": "Backlog"}]
+				"bins": ["dst-bin-1"]
 			}`))
+		case "/bins":
+			w.Write([]byte(`[{"_id": "dst-bin-1", "name": "Backlog"}]`))
 		case "/ticket-types":
 			w.Write([]byte(`[
 				{"_id": "dst-type-epic", "name": "Epic"},
@@ -394,7 +402,7 @@ func TestAttachmentCopyWithFlag(t *testing.T) {
 			w.Write([]byte(`{
 				"_id": "src-board",
 				"name": "Source Board",
-				"bins": [{"_id": "src-bin-1", "name": "Backlog"}]
+				"bins": ["src-bin-1"]
 			}`))
 		case "/tickets/src-ticket-1":
 			w.Write([]byte(`{"_id": "src-ticket-1", "name": "Ticket with File", "bin_id": "src-bin-1", "ticketType_id": "src-type-story", "order": 1}`))
@@ -402,6 +410,8 @@ func TestAttachmentCopyWithFlag(t *testing.T) {
 			w.Write([]byte(`[
 				{"_id": "src-ticket-1", "name": "Ticket with File", "bin_id": "src-bin-1", "ticketType_id": "src-type-story", "order": 1}
 			]`))
+		case "/bins":
+			w.Write([]byte(`[{"_id": "src-bin-1", "name": "Backlog"}]`))
 		case "/ticket-types":
 			w.Write([]byte(`[{"_id": "src-type-story", "name": "Story"}]`))
 		case "/custom-fields":
@@ -423,8 +433,10 @@ func TestAttachmentCopyWithFlag(t *testing.T) {
 			w.Write([]byte(`{
 				"_id": "dst-board",
 				"name": "Destination Board",
-				"bins": [{"_id": "dst-bin-1", "name": "Backlog"}]
+				"bins": ["dst-bin-1"]
 			}`))
+		case "/bins":
+			w.Write([]byte(`[{"_id": "dst-bin-1", "name": "Backlog"}]`))
 		case "/ticket-types":
 			w.Write([]byte(`[{"_id": "dst-type-story", "name": "Story"}]`))
 		case "/custom-fields":
@@ -497,7 +509,7 @@ func TestCommentCopyWithFlag(t *testing.T) {
 			w.Write([]byte(`{
 				"_id": "src-board",
 				"name": "Source Board",
-				"bins": [{"_id": "src-bin-1", "name": "Backlog"}]
+				"bins": ["src-bin-1"]
 			}`))
 		case "/tickets/src-ticket-1":
 			w.Write([]byte(`{"_id": "src-ticket-1", "name": "Ticket with Comments", "bin_id": "src-bin-1", "ticketType_id": "src-type-story", "order": 1}`))
@@ -505,6 +517,8 @@ func TestCommentCopyWithFlag(t *testing.T) {
 			w.Write([]byte(`[
 				{"_id": "src-ticket-1", "name": "Ticket with Comments", "bin_id": "src-bin-1", "ticketType_id": "src-type-story", "order": 1}
 			]`))
+		case "/bins":
+			w.Write([]byte(`[{"_id": "src-bin-1", "name": "Backlog"}]`))
 		case "/ticket-types":
 			w.Write([]byte(`[{"_id": "src-type-story", "name": "Story"}]`))
 		case "/custom-fields":
@@ -528,8 +542,10 @@ func TestCommentCopyWithFlag(t *testing.T) {
 			w.Write([]byte(`{
 				"_id": "dst-board",
 				"name": "Destination Board",
-				"bins": [{"_id": "dst-bin-1", "name": "Backlog"}]
+				"bins": ["dst-bin-1"]
 			}`))
+		case "/bins":
+			w.Write([]byte(`[{"_id": "dst-bin-1", "name": "Backlog"}]`))
 		case "/ticket-types":
 			w.Write([]byte(`[{"_id": "dst-type-story", "name": "Story"}]`))
 		case "/custom-fields":
@@ -600,7 +616,9 @@ func TestMockAPIEndpoints(t *testing.T) {
 		endpointsHit[r.URL.Path] = true
 		switch r.URL.Path {
 		case "/boards/board1":
-			w.Write([]byte(`{"_id":"board1","name":"Board","bins":[{"_id":"bin1","name":"Backlog"}]}`))
+			w.Write([]byte(`{"_id":"board1","name":"Board","bins":["bin1"]}`))
+		case "/bins":
+			w.Write([]byte(`[{"_id":"bin1","name":"Backlog"}]`))
 		case "/ticket-types":
 			w.Write([]byte(`[{"_id":"type1","name":"Story"}]`))
 		case "/custom-fields":
@@ -620,7 +638,9 @@ func TestMockAPIEndpoints(t *testing.T) {
 		endpointsHit[r.URL.Path] = true
 		switch r.URL.Path {
 		case "/boards/board2":
-			w.Write([]byte(`{"_id":"board2","name":"Board","bins":[{"_id":"bin2","name":"Backlog"}]}`))
+			w.Write([]byte(`{"_id":"board2","name":"Board","bins":["bin2"]}`))
+		case "/bins":
+			w.Write([]byte(`[{"_id":"bin2","name":"Backlog"}]`))
 		case "/ticket-types":
 			w.Write([]byte(`[{"_id":"type2","name":"Story"}]`))
 		case "/custom-fields":

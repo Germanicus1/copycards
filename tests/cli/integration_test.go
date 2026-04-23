@@ -49,9 +49,11 @@ func buildMockSrcServer(t *testing.T) *httptest.Server {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/boards":
-			w.Write([]byte(`[{"_id":"board1","name":"Main Board","bins":[{"_id":"bin1","name":"Backlog"}]},{"_id":"board2","name":"Secondary","bins":[]}]`))
+			w.Write([]byte(`[{"_id":"board1","name":"Main Board","bins":["bin1"]},{"_id":"board2","name":"Secondary","bins":[]}]`))
 		case "/boards/board1":
-			w.Write([]byte(`{"_id":"board1","name":"Main Board","bins":[{"_id":"bin1","name":"Backlog"}]}`))
+			w.Write([]byte(`{"_id":"board1","name":"Main Board","bins":["bin1"]}`))
+		case "/bins":
+			w.Write([]byte(`[{"_id":"bin1","name":"Backlog"}]`))
 		case "/ticket-types":
 			w.Write([]byte(`[{"_id":"type1","name":"Story"}]`))
 		case "/custom-fields":
@@ -75,9 +77,11 @@ func buildMockDstServer(t *testing.T) *httptest.Server {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.URL.Path {
 		case "/boards":
-			w.Write([]byte(`[{"_id":"dst-board1","name":"Dst Board","bins":[{"_id":"dst-bin1","name":"Backlog"}]}]`))
+			w.Write([]byte(`[{"_id":"dst-board1","name":"Dst Board","bins":["dst-bin1"]}]`))
 		case "/boards/dst-board1":
-			w.Write([]byte(`{"_id":"dst-board1","name":"Dst Board","bins":[{"_id":"dst-bin1","name":"Backlog"}]}`))
+			w.Write([]byte(`{"_id":"dst-board1","name":"Dst Board","bins":["dst-bin1"]}`))
+		case "/bins":
+			w.Write([]byte(`[{"_id":"dst-bin1","name":"Backlog"}]`))
 		case "/ticket-types":
 			w.Write([]byte(`[{"_id":"dst-type1","name":"Story"}]`))
 		case "/custom-fields":

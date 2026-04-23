@@ -126,7 +126,7 @@ func TestGetBoardSuccess(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"_id":"board1","name":"My Board","bins":[{"_id":"bin1","name":"Backlog"}]}`))
+		w.Write([]byte(`{"_id":"board1","name":"My Board","bins":["bin1"]}`))
 	}))
 	defer server.Close()
 
@@ -139,7 +139,7 @@ func TestGetBoardSuccess(t *testing.T) {
 	if board.ID != "board1" || board.Name != "My Board" {
 		t.Errorf("Unexpected board: %+v", board)
 	}
-	if len(board.Bins) != 1 || board.Bins[0].Name != "Backlog" {
+	if len(board.Bins) != 1 || board.Bins[0] != "bin1" {
 		t.Errorf("Unexpected bins: %+v", board.Bins)
 	}
 }
