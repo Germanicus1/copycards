@@ -26,10 +26,9 @@ Copycards is a command-line tool for copying Flowboards tickets between organiza
 
 ### Config File Location
 
-Copycards looks for configuration files in this order:
-1. `~/.copycards/config.toml` (user home directory)
-2. `./.copycards/config.toml` (current directory)
-3. Path specified via `--config` flag
+By default copycards reads `~/.config/copycards/config.toml`. Override the
+location with `--config <path>` — the flag value takes precedence for the
+duration of the run.
 
 ### Configuration Format
 
