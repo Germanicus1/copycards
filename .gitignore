@@ -40,3 +40,8 @@ __pycache__/
 
 # Dependency directories
 vendor/
+
+# Project-specific config files (copies of what users edit). Example configs
+# shipped with the repo should live in the README, not as tracked .toml files.
+config.toml
+*-config.toml
