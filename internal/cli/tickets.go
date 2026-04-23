@@ -39,32 +39,6 @@ func CopyTickets(srcProfile, dstProfile, srcBoardID, dstBoardID string, opts Cop
 		return fmt.Errorf("load mapping: %w", err)
 	}
 
-	// Ensure maps are initialized
-	if m.Users == nil {
-		m.Users = make(map[string]string)
-	}
-	if m.TicketTypes == nil {
-		m.TicketTypes = make(map[string]string)
-	}
-	if m.CustomFields == nil {
-		m.CustomFields = make(map[string]string)
-	}
-	if m.Bins == nil {
-		m.Bins = make(map[string]string)
-	}
-	if m.Tickets == nil {
-		m.Tickets = make(map[string]string)
-	}
-	if m.Comments == nil {
-		m.Comments = make(map[string]string)
-	}
-	if m.Attachments == nil {
-		m.Attachments = make(map[string]string)
-	}
-	if m.UserGroups == nil {
-		m.UserGroups = make(map[string]string)
-	}
-
 	// Set mapping context
 	m.From = srcProfile
 	m.To = dstProfile
@@ -114,32 +88,6 @@ func CopyTicket(srcProfile, dstProfile, ticketID, dstBoardID string, opts struct
 	m, err := mapping.Load(defaultMappingPath())
 	if err != nil {
 		return fmt.Errorf("load mapping: %w", err)
-	}
-
-	// Ensure maps are initialized
-	if m.Users == nil {
-		m.Users = make(map[string]string)
-	}
-	if m.TicketTypes == nil {
-		m.TicketTypes = make(map[string]string)
-	}
-	if m.CustomFields == nil {
-		m.CustomFields = make(map[string]string)
-	}
-	if m.Bins == nil {
-		m.Bins = make(map[string]string)
-	}
-	if m.Tickets == nil {
-		m.Tickets = make(map[string]string)
-	}
-	if m.Comments == nil {
-		m.Comments = make(map[string]string)
-	}
-	if m.Attachments == nil {
-		m.Attachments = make(map[string]string)
-	}
-	if m.UserGroups == nil {
-		m.UserGroups = make(map[string]string)
 	}
 
 	// Set mapping context
