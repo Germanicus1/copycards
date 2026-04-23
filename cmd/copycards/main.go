@@ -69,8 +69,8 @@ Usage:
   copycards orgs verify <profile>
   copycards boards list --from <profile>
   copycards board verify --from <src> --to <dst> --src-board <id> --dst-board <id>
-  copycards tickets copy --from <src> --to <dst> --src-board <id> --dst-board <id> [--dry-run] [--include-attachments] [--include-comments] [--concurrency N]
-  copycards ticket copy <id> --from <src> --to <dst> --dst-board <id> [--with-children] [--include-attachments] [--include-comments] [--dry-run]
+  copycards tickets copy --from <src> --to <dst> --src-board <id> --dst-board <id> [--dry-run] [--concurrency N]
+  copycards ticket copy <id> --from <src> --to <dst> --dst-board <id> [--with-children] [--dry-run]
   copycards diff --from <src> --to <dst> --src-board <id> --dst-board <id>
   copycards mapping show [--from <src> --to <dst> --src-board <id>]
   copycards mapping reset [--from <src> --to <dst> --src-board <id>]
@@ -183,8 +183,6 @@ func handleTickets(args []string) error {
 		srcBoard := fs.String("src-board", "", "source board ID (interactive if omitted)")
 		dstBoard := fs.String("dst-board", "", "destination board ID (interactive if omitted)")
 		dryRun := fs.Bool("dry-run", false, "preview changes without applying")
-		incAttach := fs.Bool("include-attachments", false, "copy attachments")
-		incComments := fs.Bool("include-comments", false, "copy comments")
 		concurrency := fs.Int("concurrency", 4, "number of concurrent requests (1-500)")
 
 		if err := fs.Parse(rest); err != nil {
@@ -218,10 +216,8 @@ func handleTickets(args []string) error {
 		}
 
 		opts := cli.CopyTicketsOptions{
-			DryRun:             *dryRun,
-			IncludeAttachments: *incAttach,
-			IncludeComments:    *incComments,
-			Concurrency:        *concurrency,
+			DryRun:      *dryRun,
+			Concurrency: *concurrency,
 		}
 
 		return cli.CopyTickets(*from, *to, srcBoardID, dstBoardID, opts)
@@ -246,8 +242,6 @@ func handleTicket(args []string) error {
 		to := fs.String("to", "", "destination profile")
 		dstBoard := fs.String("dst-board", "", "destination board ID")
 		withChildren := fs.Bool("with-children", false, "copy child tickets")
-		incAttach := fs.Bool("include-attachments", false, "copy attachments")
-		incComments := fs.Bool("include-comments", false, "copy comments")
 		dryRun := fs.Bool("dry-run", false, "preview changes without applying")
 
 		if err := fs.Parse(rest); err != nil {
@@ -265,15 +259,11 @@ func handleTicket(args []string) error {
 		}
 
 		opts := struct {
-			WithChildren       bool
-			IncludeAttachments bool
-			IncludeComments    bool
-			DryRun             bool
+			WithChildren bool
+			DryRun       bool
 		}{
-			WithChildren:       *withChildren,
-			IncludeAttachments: *incAttach,
-			IncludeComments:    *incComments,
-			DryRun:             *dryRun,
+			WithChildren: *withChildren,
+			DryRun:       *dryRun,
 		}
 
 		return cli.CopyTicket(*from, *to, ticketID, *dstBoard, opts)

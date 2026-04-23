@@ -9,10 +9,8 @@ import (
 
 // CopyTicketsOptions holds flags for the tickets copy command
 type CopyTicketsOptions struct {
-	DryRun              bool
-	IncludeAttachments  bool
-	IncludeComments     bool
-	Concurrency         int
+	DryRun      bool
+	Concurrency int
 }
 
 // CopyTickets copies all tickets between two boards
@@ -84,10 +82,8 @@ func CopyTickets(srcProfile, dstProfile, srcBoardID, dstBoardID string, opts Cop
 
 	// Run board copy
 	boardOpts := copier.CopyBoardOptions{
-		IncludeAttachments: opts.IncludeAttachments,
-		IncludeComments:    opts.IncludeComments,
-		DryRun:             opts.DryRun,
-		Concurrency:        opts.Concurrency,
+		DryRun:      opts.DryRun,
+		Concurrency: opts.Concurrency,
 	}
 
 	if err := copier.CopyBoard(srcClient, dstClient, srcBoardID, dstBoardID, m, boardOpts); err != nil {
@@ -106,10 +102,8 @@ func CopyTickets(srcProfile, dstProfile, srcBoardID, dstBoardID string, opts Cop
 
 // CopyTicket copies a single ticket from src to dst
 func CopyTicket(srcProfile, dstProfile, ticketID, dstBoardID string, opts struct {
-	WithChildren       bool
-	IncludeAttachments bool
-	IncludeComments    bool
-	DryRun             bool
+	WithChildren bool
+	DryRun       bool
 }) error {
 	cfg, err := loadConfig()
 	if err != nil {
@@ -170,10 +164,8 @@ func CopyTicket(srcProfile, dstProfile, ticketID, dstBoardID string, opts struct
 
 	// Copy the ticket
 	ticketOpts := copier.CopyTicketOptions{
-		IncludeAttachments: opts.IncludeAttachments,
-		IncludeComments:    opts.IncludeComments,
-		WithChildren:       opts.WithChildren,
-		Force:              false,
+		WithChildren: opts.WithChildren,
+		Force:        false,
 	}
 
 	newID, err := copier.CopyTicket(srcClient, dstClient, ticketID, dstBoardID, m, ticketOpts)

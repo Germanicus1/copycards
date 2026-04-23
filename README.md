@@ -107,8 +107,6 @@ copycards tickets copy \
   --from <src> --to <dst> \
   --src-board <id> --dst-board <id> \
   [--dry-run] \
-  [--include-attachments] \
-  [--include-comments] \
   [--concurrency N]
 ```
 
@@ -119,8 +117,6 @@ copycards ticket copy <id> \
   --from <src> --to <dst> \
   --dst-board <id> \
   [--with-children] \
-  [--include-attachments] \
-  [--include-comments] \
   [--dry-run]
 ```
 
@@ -241,18 +237,6 @@ Tickets in src not yet copied to dst:
 Total: 2 ticket(s) remaining
 ```
 
-### Include Attachments and Comments
-
-By default, attachments and comments are skipped. To include them:
-
-```bash
-$ copycards tickets copy \
-    --from src --to dst \
-    --src-board board_main_id --dst-board board_dst_id \
-    --include-attachments \
-    --include-comments
-```
-
 ### Control Concurrency
 
 Limit API call concurrency (default: 4):
@@ -267,8 +251,6 @@ $ copycards tickets copy \
 ## Options
 
 - `--dry-run`: Simulate copy without making changes (creates no tickets, no mappings written)
-- `--include-attachments`: Copy file attachments from source tickets
-- `--include-comments`: Copy comments from source tickets
 - `--concurrency N`: Control number of concurrent API requests (default: 4)
 - `--verbose`: Enable verbose logging
 

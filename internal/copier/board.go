@@ -11,11 +11,9 @@ import (
 
 // CopyBoardOptions controls full board copy
 type CopyBoardOptions struct {
-	IncludeArchived    bool
-	IncludeAttachments bool
-	IncludeComments    bool
-	DryRun             bool
-	Concurrency        int
+	IncludeArchived bool
+	DryRun          bool
+	Concurrency     int
 }
 
 // CopyBoard copies all tickets from src board to dst board
@@ -54,10 +52,8 @@ func CopyBoard(srcClient, dstClient *fbclient.Client, srcBoardID, dstBoardID str
 
 	// Copy each ticket
 	ticketOpts := CopyTicketOptions{
-		IncludeAttachments: opts.IncludeAttachments,
-		IncludeComments:    opts.IncludeComments,
-		WithChildren:       false, // handled by preflight enumeration
-		Force:              false,
+		WithChildren: false, // handled by preflight enumeration
+		Force:        false,
 	}
 
 	copiedCount := 0

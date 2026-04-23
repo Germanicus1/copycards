@@ -16,10 +16,8 @@ var ErrTicketNotCopyable = errors.New("ticket not copyable")
 
 // CopyTicketOptions controls ticket copy behavior
 type CopyTicketOptions struct {
-	IncludeAttachments bool
-	IncludeComments    bool
-	WithChildren       bool
-	Force              bool
+	WithChildren bool
+	Force        bool
 }
 
 // CopyTicket copies a single ticket from src to dst
@@ -71,20 +69,6 @@ func CopyTicket(srcClient, dstClient *fbclient.Client, srcTicketID, dstBoardID s
 
 	// Record mapping
 	m.RecordTicket(srcTicketID, newID)
-
-	// Copy attachments if requested
-	if opts.IncludeAttachments {
-		if err := CopyAttachments(srcClient, dstClient, srcTicketID, newID, m); err != nil {
-			return newID, fmt.Errorf("copy attachments: %w", err)
-		}
-	}
-
-	// Copy comments if requested
-	if opts.IncludeComments {
-		if err := CopyComments(srcClient, dstClient, srcTicketID, newID, m); err != nil {
-			return newID, fmt.Errorf("copy comments: %w", err)
-		}
-	}
 
 	return newID, nil
 }
@@ -286,14 +270,3 @@ func AllocateID(client *fbclient.Client) (string, error) {
 	return ids[0], nil
 }
 
-// CopyAttachments copies all attachments from src ticket to dst ticket
-func CopyAttachments(srcClient, dstClient *fbclient.Client, srcTicketID, dstTicketID string, m *mapping.Mapping) error {
-	// TODO: implement in Task 7
-	return nil
-}
-
-// CopyComments copies all comments from src ticket to dst ticket
-func CopyComments(srcClient, dstClient *fbclient.Client, srcTicketID, dstTicketID string, m *mapping.Mapping) error {
-	// TODO: implement in Task 7
-	return nil
-}
