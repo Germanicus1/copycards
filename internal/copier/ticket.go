@@ -164,17 +164,14 @@ func TranslateTicket(srcTicket *fbclient.Ticket, newID, dstBoardID string, m *ma
 	return dst, nil
 }
 
-// createTicketTwoStep creates the ticket with required fields only, then adds
-// the remaining payload via a $partial update. Used as a fallback when the
-// full CreateTicket is blocked by CloudFront WAF.
+// createTicketTwoStep is the tier-2/tier-3 fallback after a full CreateTicket
+// was blocked by CloudFront WAF. It creates a minimal ticket (required fields
+// only), then layers the rest via a $partial update. If the update itself
+// trips WAF, a final tier-3 attempt sanitizes the description and retries.
 //
-// Records the src↔dst mapping as soon as the minimal POST succeeds so that
-// any later failure doesn't orphan a ticket on re-runs (the mapping already
-// knows about it and CopyTicket will short-circuit).
-//
-// If the partial update is itself blocked by CloudFront, a tier-3 fallback
-// sanitizes the description (byte-level edits that preserve visible meaning
-// but break common WAF regexes) and retries once.
+// The src↔dst mapping is recorded as soon as the minimal POST succeeds so
+// later failures don't orphan the dst stub — re-runs see the mapping and
+// short-circuit instead of double-creating.
 func createTicketTwoStep(client *fbclient.Client, t *fbclient.Ticket, m *mapping.Mapping, srcID string) error {
 	minimal := &fbclient.Ticket{
 		ID:           t.ID,
@@ -191,6 +188,25 @@ func createTicketTwoStep(client *fbclient.Client, t *fbclient.Ticket, m *mapping
 	// the rest so a later failure doesn't lead to a re-run double-creating it.
 	m.RecordTicket(srcID, t.ID)
 
+	updates := buildPartialUpdates(t)
+	if len(updates) == 0 {
+		return nil
+	}
+
+	err := client.UpdateTicket(t.ID, updates)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, fbclient.ErrCloudFrontBlocked) {
+		return fmt.Errorf("partial update: %w", err)
+	}
+
+	return attemptSanitizedUpdate(client, t.ID, updates, err)
+}
+
+// buildPartialUpdates collects the non-minimal ticket fields into the $partial
+// update payload. Empty fields are dropped so the request body stays small.
+func buildPartialUpdates(t *fbclient.Ticket) map[string]interface{} {
 	updates := map[string]interface{}{}
 	if t.Description != nil {
 		updates["description"] = t.Description
@@ -216,26 +232,18 @@ func createTicketTwoStep(client *fbclient.Client, t *fbclient.Ticket, m *mapping
 	if t.DueDate != "" {
 		updates["dueDate"] = t.DueDate
 	}
+	return updates
+}
 
-	if len(updates) == 0 {
-		return nil
-	}
-
-	err := client.UpdateTicket(t.ID, updates)
-	if err == nil {
-		return nil
-	}
-	if !errors.Is(err, fbclient.ErrCloudFrontBlocked) {
-		return fmt.Errorf("partial update: %w", err)
-	}
-
-	// Tier 3: WAF blocked the partial update too. Sanitize the description,
-	// append an audit note, and retry once more.
+// attemptSanitizedUpdate is the tier-3 retry after the $partial update was
+// itself WAF-blocked. It byte-level edits the description (preserving visible
+// meaning), annotates the ticket with an audit note, and tries once more. If
+// the description has nothing WAF-matchable, origErr is returned unchanged —
+// the block is on content we can't safely mutate.
+func attemptSanitizedUpdate(client *fbclient.Client, ticketID string, updates map[string]interface{}, origErr error) error {
 	sanitized, changes := sanitizeDescription(updates["description"])
 	if len(changes) == 0 {
-		// Nothing in the description matched any known trigger pattern —
-		// the block must be on other content we can't safely mutate.
-		return fmt.Errorf("partial update: %w", err)
+		return fmt.Errorf("partial update: %w", origErr)
 	}
 	if s, ok := sanitized.(string); ok {
 		updates["description"] = annotateDescription(s)
@@ -244,7 +252,7 @@ func createTicketTwoStep(client *fbclient.Client, t *fbclient.Ticket, m *mapping
 	}
 	fmt.Printf("  sanitized description: %s\n", strings.Join(changes, "; "))
 
-	if err := client.UpdateTicket(t.ID, updates); err != nil {
+	if err := client.UpdateTicket(ticketID, updates); err != nil {
 		return fmt.Errorf("partial update (sanitized): %w", err)
 	}
 	return nil
