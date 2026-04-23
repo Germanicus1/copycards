@@ -67,7 +67,7 @@ org_id  = "xyz789"
 api_key = "env:FB_KEY_DST"
 ```
 
-`endpoint` is optional — when omitted, copycards discovers the REST URL via Flowboards' `/rest-directory/2/<org_id>` and caches it for 24 hours under `~/.cache/copycards/`.
+`endpoint` is optional — when omitted, copycards uses `https://n1.flowboards.kanban.plus/rest/2/<org_id>`. Override only if your org lives on a different host or you're pointing at a mock server.
 
 **3. Verify both orgs authenticate:**
 
@@ -112,7 +112,7 @@ default_to   = "dst"
 [orgs.src]
 org_id   = "org_src_id"
 api_key  = "env:FB_KEY_SRC"
-# endpoint = "https://fb.mauvable.com/..."   # optional — auto-discovered if omitted
+# endpoint = "https://n1.flowboards.kanban.plus/rest/2/..."   # optional — defaulted from org_id
 
 [orgs.dst]
 org_id  = "org_dst_id"
@@ -129,9 +129,11 @@ Fields:
 
 Any `api_key = "env:FOO"` is resolved by reading `$FOO` when the config is loaded. If the variable is unset, copycards refuses to start with `env var FOO not set for org <name>`. Keep your secrets in a `.env`-style file that you `source` before invoking copycards — `example.env` ships with the two variable names the default config uses.
 
-### Endpoint discovery
+### Endpoint resolution
 
-When no `endpoint` is set on an org, copycards calls `https://fb.mauvable.com/rest-directory/2/<org_id>` with the org's API key, caches the returned `restUrlPrefix` in `~/.cache/copycards/endpoint-<org_id>.json` for 24 hours, and uses it for all subsequent calls.
+The Flowboards REST endpoint for any org is deterministic: `https://n1.flowboards.kanban.plus/rest/2/<org_id>`. Copycards builds that URL from `org_id` and uses it for every call — no discovery round-trip, no cache.
+
+Set `endpoint = "..."` in an org block to override (useful for mock servers, or if your org is on a different host).
 
 ## State directory (`.copycard/`)
 

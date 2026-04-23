@@ -26,12 +26,7 @@ func ListOrgs() error {
 
 	for _, name := range orgNames {
 		org, _ := cfg.GetOrg(name)
-
-		// Try to resolve endpoint (config override or discover)
-		endpoint, err := resolveEndpoint(org)
-		if err != nil {
-			endpoint = "(unable to discover)"
-		}
+		endpoint := resolveEndpoint(org)
 
 		fmt.Printf("  [%s]\n", name)
 		fmt.Printf("    org_id:   %s\n", org.OrgID)

@@ -25,16 +25,13 @@ func defaultMappingPath() string {
 	return filepath.Join(os.ExpandEnv("$HOME"), ".copycard", "mapping.json")
 }
 
-// resolveEndpoint returns the configured endpoint or discovers it from the API
-func resolveEndpoint(org *config.OrgConfig) (string, error) {
+// resolveEndpoint returns the configured endpoint if set, otherwise builds
+// the deterministic one from the org ID.
+func resolveEndpoint(org *config.OrgConfig) string {
 	if org.Endpoint != "" {
-		return org.Endpoint, nil
+		return org.Endpoint
 	}
-	endpoint, err := config.DiscoverEndpoint(org.OrgID, org.APIKey)
-	if err != nil {
-		return "", fmt.Errorf("endpoint discovery: %w", err)
-	}
-	return endpoint, nil
+	return config.BuildEndpoint(org.OrgID)
 }
 
 // makeClient loads config, resolves endpoint, and returns an fbclient
@@ -43,11 +40,7 @@ func makeClient(cfg *config.Config, profileName string) (*fbclient.Client, error
 	if err != nil {
 		return nil, err
 	}
-	endpoint, err := resolveEndpoint(org)
-	if err != nil {
-		return nil, fmt.Errorf("org %q: %w", profileName, err)
-	}
-	return fbclient.NewClient(endpoint, org.APIKey), nil
+	return fbclient.NewClient(resolveEndpoint(org), org.APIKey), nil
 }
 
 // loadConfig loads the config from the default path
