@@ -22,11 +22,7 @@ import (
 // - Parent/child link restoration
 // - Dry-run mode prevents writes
 func TestFullBoardCopyFlow(t *testing.T) {
-	// Setup temporary home directory for mapping file
-	tmpHome := t.TempDir()
-	origHome := os.Getenv("HOME")
-	defer os.Setenv("HOME", origHome)
-	os.Setenv("HOME", tmpHome)
+	tmpHome := withTempHome(t)
 
 	// Create mock source server
 	srcServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -270,10 +266,7 @@ func TestFullBoardCopyFlow(t *testing.T) {
 
 // TestParentChildLinkRestoration tests that parent/child relationships are properly restored
 func TestParentChildLinkRestoration(t *testing.T) {
-	tmpHome := t.TempDir()
-	origHome := os.Getenv("HOME")
-	defer os.Setenv("HOME", origHome)
-	os.Setenv("HOME", tmpHome)
+	withTempHome(t)
 
 	// Mock source server with parent/child tickets
 	srcServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -387,10 +380,7 @@ func TestParentChildLinkRestoration(t *testing.T) {
 
 // TestMockAPIEndpoints verifies all required API endpoints are handled
 func TestMockAPIEndpoints(t *testing.T) {
-	tmpHome := t.TempDir()
-	origHome := os.Getenv("HOME")
-	defer os.Setenv("HOME", origHome)
-	os.Setenv("HOME", tmpHome)
+	withTempHome(t)
 
 	endpointsHit := make(map[string]bool)
 

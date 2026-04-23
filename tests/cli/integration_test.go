@@ -11,37 +11,6 @@ import (
 	"copycards/internal/mapping"
 )
 
-// setupTestConfig creates a temporary config file and sets HOME to use it
-func setupTestConfig(t *testing.T, srcURL, dstURL string) string {
-	t.Helper()
-
-	tmpDir := t.TempDir()
-	configDir := filepath.Join(tmpDir, ".config", "copycards")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		t.Fatalf("mkdir config dir: %v", err)
-	}
-
-	configContent := `default_from = "src"
-default_to = "dst"
-
-[orgs.src]
-org_id = "src-org"
-api_key = "src-key"
-endpoint = "` + srcURL + `"
-
-[orgs.dst]
-org_id = "dst-org"
-api_key = "dst-key"
-endpoint = "` + dstURL + `"
-`
-	configPath := filepath.Join(configDir, "config.toml")
-	if err := os.WriteFile(configPath, []byte(configContent), 0644); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-
-	return configPath
-}
-
 // buildMockSrcServer creates a mock src Flowboards API server
 func buildMockSrcServer(t *testing.T) *httptest.Server {
 	t.Helper()
@@ -108,38 +77,13 @@ func buildMockDstServer(t *testing.T) *httptest.Server {
 func TestListBoardsWithMockServer(t *testing.T) {
 	srcServer := buildMockSrcServer(t)
 	defer srcServer.Close()
-
 	dstServer := buildMockDstServer(t)
 	defer dstServer.Close()
 
-	// Test cli.ListBoards requires config file
-	// We test by temporarily overriding HOME to point to our temp config dir
-	tmpDir := t.TempDir()
-	configDir := filepath.Join(tmpDir, ".config", "copycards")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		t.Fatalf("mkdir config dir: %v", err)
-	}
+	home := withTempHome(t)
+	writeTestConfig(t, home, srcServer.URL, "")
 
-	configContent := `default_from = "src"
-default_to = "dst"
-
-[orgs.src]
-org_id = "src-org"
-api_key = "src-key"
-endpoint = "` + srcServer.URL + `"
-`
-	if err := os.WriteFile(filepath.Join(configDir, "config.toml"), []byte(configContent), 0644); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-
-	// Temporarily override HOME
-	origHome := os.Getenv("HOME")
-	defer os.Setenv("HOME", origHome)
-	os.Setenv("HOME", tmpDir)
-
-	// Call ListBoards
-	err := cli.ListBoards("src")
-	if err != nil {
+	if err := cli.ListBoards("src"); err != nil {
 		t.Fatalf("ListBoards failed: %v", err)
 	}
 }
@@ -147,65 +91,32 @@ endpoint = "` + srcServer.URL + `"
 func TestVerifyBoardsWithMockServer(t *testing.T) {
 	srcServer := buildMockSrcServer(t)
 	defer srcServer.Close()
-
 	dstServer := buildMockDstServer(t)
 	defer dstServer.Close()
 
-	tmpDir := t.TempDir()
-	configDir := filepath.Join(tmpDir, ".config", "copycards")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		t.Fatalf("mkdir config dir: %v", err)
-	}
+	home := withTempHome(t)
+	writeTestConfig(t, home, srcServer.URL, dstServer.URL)
 
-	configContent := `default_from = "src"
-default_to = "dst"
-
-[orgs.src]
-org_id = "src-org"
-api_key = "src-key"
-endpoint = "` + srcServer.URL + `"
-
-[orgs.dst]
-org_id = "dst-org"
-api_key = "dst-key"
-endpoint = "` + dstServer.URL + `"
-`
-	if err := os.WriteFile(filepath.Join(configDir, "config.toml"), []byte(configContent), 0644); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-
-	origHome := os.Getenv("HOME")
-	defer os.Setenv("HOME", origHome)
-	os.Setenv("HOME", tmpDir)
-
-	err := cli.VerifyBoards("src", "dst", "board1", "dst-board1")
-	if err != nil {
+	if err := cli.VerifyBoards("src", "dst", "board1", "dst-board1"); err != nil {
 		t.Fatalf("VerifyBoards failed: %v", err)
 	}
 }
 
 func TestShowMappingEmpty(t *testing.T) {
-	tmpDir := t.TempDir()
+	withTempHome(t)
 
-	origHome := os.Getenv("HOME")
-	defer os.Setenv("HOME", origHome)
-	os.Setenv("HOME", tmpDir)
-
-	// Should not error even if no mapping exists
-	err := cli.ShowMapping("", "", "")
-	if err != nil {
+	if err := cli.ShowMapping("", "", ""); err != nil {
 		t.Fatalf("ShowMapping failed: %v", err)
 	}
 }
 
 func TestShowMappingWithContent(t *testing.T) {
-	tmpDir := t.TempDir()
-	copycardDir := filepath.Join(tmpDir, ".copycard")
-	if err := os.MkdirAll(copycardDir, 0755); err != nil {
+	home := withTempHome(t)
+	copycardDir := filepath.Join(home, ".copycard")
+	if err := os.MkdirAll(copycardDir, 0o755); err != nil {
 		t.Fatalf("mkdir .copycard: %v", err)
 	}
 
-	// Create a mapping file
 	m := &mapping.Mapping{
 		From:         "src",
 		To:           "dst",
@@ -220,18 +131,11 @@ func TestShowMappingWithContent(t *testing.T) {
 		Attachments:  map[string]string{},
 		UserGroups:   map[string]string{},
 	}
-
-	mappingPath := filepath.Join(copycardDir, "mapping.json")
-	if err := m.Save(mappingPath); err != nil {
+	if err := m.Save(filepath.Join(copycardDir, "mapping.json")); err != nil {
 		t.Fatalf("save mapping: %v", err)
 	}
 
-	origHome := os.Getenv("HOME")
-	defer os.Setenv("HOME", origHome)
-	os.Setenv("HOME", tmpDir)
-
-	err := cli.ShowMapping("", "", "")
-	if err != nil {
+	if err := cli.ShowMapping("", "", ""); err != nil {
 		t.Fatalf("ShowMapping failed: %v", err)
 	}
 }
@@ -240,32 +144,12 @@ func TestDiffBoardsWithMockServer(t *testing.T) {
 	srcServer := buildMockSrcServer(t)
 	defer srcServer.Close()
 
-	tmpDir := t.TempDir()
-	configDir := filepath.Join(tmpDir, ".config", "copycards")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		t.Fatalf("mkdir config dir: %v", err)
-	}
+	// DiffBoards uses both orgs but only hits the src endpoint for tickets;
+	// point both at srcServer so there's nothing to stub on a second host.
+	home := withTempHome(t)
+	writeTestConfig(t, home, srcServer.URL, srcServer.URL)
 
-	configContent := `[orgs.src]
-org_id = "src-org"
-api_key = "src-key"
-endpoint = "` + srcServer.URL + `"
-
-[orgs.dst]
-org_id = "dst-org"
-api_key = "dst-key"
-endpoint = "` + srcServer.URL + `"
-`
-	if err := os.WriteFile(filepath.Join(configDir, "config.toml"), []byte(configContent), 0644); err != nil {
-		t.Fatalf("write config: %v", err)
-	}
-
-	origHome := os.Getenv("HOME")
-	defer os.Setenv("HOME", origHome)
-	os.Setenv("HOME", tmpDir)
-
-	err := cli.DiffBoards("src", "dst", "board1", "dst-board1")
-	if err != nil {
+	if err := cli.DiffBoards("src", "dst", "board1", "dst-board1"); err != nil {
 		t.Fatalf("DiffBoards failed: %v", err)
 	}
 }
